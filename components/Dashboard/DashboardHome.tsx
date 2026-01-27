@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
     ShareIcon, ChevronDownIcon, HeartIcon, StarIcon, 
     ShoppingBagIcon, FileTextIcon, EditIcon
 } from '../visuals/Icons';
+import { BitcoinIcon } from '../visuals/CryptoLogos';
 
 export const DashboardHome: React.FC = () => {
+  const [autoConvertBTC, setAutoConvertBTC] = useState(false);
+
   return (
     <div className="space-y-8">
       {/* 1. User Card */}
@@ -31,7 +34,7 @@ export const DashboardHome: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Earnings Card */}
-        <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-chocolate/5">
+        <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-chocolate/5 flex flex-col">
             <div className="flex justify-between items-center mb-6">
                 <h2 className="font-fredoka text-xl font-bold text-chocolate-dark">Earnings</h2>
                 <button className="flex items-center gap-1.5 text-xs font-bold text-chocolate/50 bg-cream px-3 py-1.5 rounded-full hover:bg-chocolate/5 transition-colors">
@@ -51,7 +54,38 @@ export const DashboardHome: React.FC = () => {
             </div>
 
             {/* Visual Bar - Empty State */}
-            <div className="h-4 bg-cream-light rounded-full w-full overflow-hidden border border-chocolate/5"></div>
+            <div className="h-4 bg-cream-light rounded-full w-full overflow-hidden border border-chocolate/5 mb-auto"></div>
+
+            {/* Auto-Convert to BTC Toggle */}
+            <div className="mt-8 pt-6 border-t border-chocolate/5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-[#F7931A]/10 flex items-center justify-center flex-shrink-0">
+                        <BitcoinIcon className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-2">
+                             <h3 className="font-fredoka font-bold text-chocolate-dark text-sm">Auto-convert to Bitcoin</h3>
+                             <span className="bg-gradient-to-r from-glaze-pink to-glaze-orange text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider">New</span>
+                        </div>
+                        <p className="text-xs text-chocolate/50 font-medium mt-0.5">Automatically swap all incoming earnings to BTC.</p>
+                    </div>
+                </div>
+                
+                <button 
+                    onClick={() => setAutoConvertBTC(!autoConvertBTC)}
+                    className={`w-12 h-7 rounded-full transition-colors relative focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-glaze-orange ${
+                        autoConvertBTC ? 'bg-green-badge' : 'bg-chocolate/10'
+                    }`}
+                    role="switch"
+                    aria-checked={autoConvertBTC}
+                >
+                    <span 
+                        className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+                            autoConvertBTC ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                    />
+                </button>
+            </div>
         </div>
 
         {/* Goal Card */}
