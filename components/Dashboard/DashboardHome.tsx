@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
     ShareIcon, ChevronDownIcon, HeartIcon, StarIcon, 
-    ShoppingBagIcon, FileTextIcon, EditIcon
+    GiftIcon, FileTextIcon
 } from '../visuals/Icons';
 import { BitcoinIcon } from '../visuals/CryptoLogos';
 
@@ -30,11 +30,11 @@ export const DashboardHome: React.FC = () => {
         </button>
       </div>
 
-      {/* 2. Earnings & Goal Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* 2. Earnings Section */}
+      <div className="flex flex-col gap-6">
         
-        {/* Earnings Card */}
-        <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-chocolate/5 flex flex-col">
+        {/* Earnings Card (Full Width) */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-chocolate/5 flex flex-col">
             <div className="flex justify-between items-center mb-6">
                 <h2 className="font-fredoka text-xl font-bold text-chocolate-dark">Earnings</h2>
                 <button className="flex items-center gap-1.5 text-xs font-bold text-chocolate/50 bg-cream px-3 py-1.5 rounded-full hover:bg-chocolate/5 transition-colors">
@@ -50,7 +50,6 @@ export const DashboardHome: React.FC = () => {
             <div className="flex flex-wrap gap-6 mb-6">
                  <LegendItem color="bg-[#FFD700]" label="Supporters" value="$0" />
                  <LegendItem color="bg-glaze-pink" label="Membership" value="$0" />
-                 <LegendItem color="bg-sprinkle-blue" label="Shop" value="$0" />
             </div>
 
             {/* Visual Bar - Empty State */}
@@ -87,34 +86,6 @@ export const DashboardHome: React.FC = () => {
                 </button>
             </div>
         </div>
-
-        {/* Goal Card */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-chocolate/5 flex flex-col">
-            <div className="flex justify-between items-start mb-4">
-                <span className="bg-green-100 text-green-700 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded">in progress</span>
-                <button className="text-chocolate/30 hover:text-chocolate transition-colors">
-                    <EditIcon className="w-4 h-4" />
-                </button>
-            </div>
-            
-            <div className="flex-1 flex flex-col justify-center">
-                <div className="mb-2 flex justify-between text-sm font-medium">
-                    <span className="text-chocolate-dark">0%</span>
-                </div>
-                <div className="h-3 bg-cream rounded-full w-full mb-4 overflow-hidden">
-                     <div className="h-full bg-glaze-orange w-[2%] rounded-full"></div>
-                </div>
-                <p className="text-center font-fredoka text-lg text-chocolate-dark mb-1">
-                    <span className="font-bold">$0</span> raised of $1000 goal
-                </p>
-            </div>
-
-            <div className="mt-4 pt-4 border-t border-chocolate/5">
-                <button className="w-full py-2 text-sm font-bold text-glaze-pink hover:bg-glaze-pink/5 rounded-lg transition-colors">
-                    Mark as completed
-                </button>
-            </div>
-        </div>
       </div>
 
       {/* 3. More ways to earn */}
@@ -127,10 +98,10 @@ export const DashboardHome: React.FC = () => {
             action="View"
           />
           <FeatureCard 
-            icon={ShoppingBagIcon} 
+            icon={GiftIcon} 
             iconColor="text-sprinkle-blue"
-            title="Shop" 
-            desc="Sell digital or physical goods directly to fans."
+            title="Gift" 
+            desc="Gift digital goods directly to fans."
             action="Enable"
           />
           <FeatureCard 
@@ -142,14 +113,14 @@ export const DashboardHome: React.FC = () => {
           />
       </div>
 
-      {/* 4. Supporters Empty State */}
+      {/* 4. Supporters Empty State - Improved PR */}
       <div className="bg-white rounded-2xl p-12 shadow-sm border border-chocolate/5 text-center flex flex-col items-center">
-         <div className="w-16 h-16 bg-cream rounded-full flex items-center justify-center text-chocolate/20 mb-4">
-             <HeartIcon className="w-8 h-8 fill-current" />
+         <div className="w-16 h-16 bg-cream rounded-full flex items-center justify-center text-chocolate/20 mb-4 animate-float-donut">
+             <HeartIcon className="w-8 h-8 fill-current text-glaze-pink" />
          </div>
-         <h3 className="font-fredoka text-xl font-bold text-chocolate-dark mb-2">You don't have any supporters yet</h3>
+         <h3 className="font-fredoka text-xl font-bold text-chocolate-dark mb-2">Your page is ready for the world</h3>
          <p className="text-chocolate/50 max-w-sm mb-6">
-             Share your page with your audience to get started and receive your first donut.
+             You're all set to start accepting support. Share your link with your community to kick things off.
          </p>
          <button className="bg-chocolate-dark text-white px-6 py-2.5 rounded-full font-medium text-sm shadow-lg shadow-chocolate/20 hover:scale-105 transition-transform">
              Share your page

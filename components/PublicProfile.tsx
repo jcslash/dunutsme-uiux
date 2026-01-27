@@ -113,7 +113,6 @@ export const PublicProfile: React.FC<PublicProfileProps> = ({ onLogoClick }) => 
                           <SupporterItem 
                              name="Alex Chen" 
                              action="bought 3 donuts" 
-                             time="2h ago"
                              message="Thanks for the awesome tutorial on React! helped me a ton."
                              amount={3}
                           />
@@ -121,14 +120,12 @@ export const PublicProfile: React.FC<PublicProfileProps> = ({ onLogoClick }) => 
                           <SupporterItem 
                              name="Sarah W." 
                              action="bought 1 donut" 
-                             time="5h ago"
                              amount={1}
                           />
                            <div className="w-full h-px bg-chocolate/5"></div>
                           <SupporterItem 
                              name="Anon" 
                              action="bought 5 donuts" 
-                             time="1d ago"
                              message="Keep building!"
                              amount={5}
                           />
@@ -233,7 +230,7 @@ const DonationPanel: React.FC<any> = ({ amount, toggleAmount, customAmount, setC
     );
 };
 
-const SupporterItem: React.FC<{name: string, action: string, time: string, message?: string, amount: number}> = ({ name, action, time, message, amount }) => (
+const SupporterItem: React.FC<{name: string, action: string, message?: string, amount: number}> = ({ name, action, message, amount }) => (
     <div className="flex gap-4">
         <div className="w-10 h-10 rounded-full bg-cream flex-shrink-0 flex items-center justify-center border border-chocolate/5">
             <HeartIcon className="w-5 h-5 text-glaze-pink fill-current" />
@@ -248,7 +245,6 @@ const SupporterItem: React.FC<{name: string, action: string, time: string, messa
                     {message}
                 </div>
             )}
-             <span className="text-xs text-chocolate/30 font-medium">{time}</span>
         </div>
     </div>
 );
