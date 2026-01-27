@@ -7,6 +7,14 @@ interface HeroProps {
 }
 
 export const Hero: React.FC<HeroProps> = ({ onOpenLogin }) => {
+  const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    e.preventDefault();
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <section 
       className="min-h-screen flex items-center pt-28 pb-16 px-6 relative overflow-hidden bg-gradient-to-b from-cream-light to-cream"
@@ -36,7 +44,11 @@ export const Hero: React.FC<HeroProps> = ({ onOpenLogin }) => {
             >
               Create Your Page
             </button>
-            <a href="#how-it-works" className="inline-flex items-center justify-center font-fredoka font-semibold text-base text-chocolate-dark bg-white border-[1.5px] border-chocolate/15 px-7 py-3.5 rounded-full hover:border-chocolate hover:shadow-soft transition-all min-w-[160px]">
+            <a 
+              href="#how-it-works" 
+              onClick={(e) => scrollToSection(e, 'how-it-works')}
+              className="inline-flex items-center justify-center font-fredoka font-semibold text-base text-chocolate-dark bg-white border-[1.5px] border-chocolate/15 px-7 py-3.5 rounded-full hover:border-chocolate hover:shadow-soft transition-all min-w-[160px]"
+            >
               See How It Works
             </a>
           </div>

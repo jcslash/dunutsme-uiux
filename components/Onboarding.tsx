@@ -3,9 +3,10 @@ import { DonutLogoIcon } from './visuals/Icons';
 
 interface OnboardingProps {
     onFinish: () => void;
+    onLogout: () => void;
 }
 
-export const Onboarding: React.FC<OnboardingProps> = ({ onFinish }) => {
+export const Onboarding: React.FC<OnboardingProps> = ({ onFinish, onLogout }) => {
   const [username, setUsername] = useState('');
 
   const handleSubmit = () => {
@@ -21,7 +22,10 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onFinish }) => {
         <a href="#" className="w-10 h-10 hover:scale-105 transition-transform">
             <DonutLogoIcon />
         </a>
-        <button className="text-sm font-medium text-chocolate/60 hover:text-chocolate transition-colors">
+        <button 
+            onClick={onLogout}
+            className="text-sm font-medium text-chocolate/60 hover:text-chocolate transition-colors"
+        >
           Log out
         </button>
       </header>

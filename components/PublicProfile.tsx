@@ -4,7 +4,11 @@ import {
     DonutIcon, ChevronDownIcon, MenuIcon, HeartIcon 
 } from './visuals/Icons';
 
-export const PublicProfile: React.FC = () => {
+interface PublicProfileProps {
+    onLogoClick?: () => void;
+}
+
+export const PublicProfile: React.FC<PublicProfileProps> = ({ onLogoClick }) => {
   const [amount, setAmount] = useState(3);
   const [customAmount, setCustomAmount] = useState('');
   const [name, setName] = useState('');
@@ -20,7 +24,11 @@ export const PublicProfile: React.FC = () => {
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-chocolate/5 z-50 px-4 md:px-8 flex justify-between items-center">
         <div className="flex items-center gap-6">
-            <a href="#" className="flex items-center gap-2 font-fredoka font-bold text-lg text-chocolate hover:scale-[1.02] transition-transform">
+            <a 
+                href="#" 
+                onClick={(e) => { e.preventDefault(); onLogoClick?.(); }}
+                className="flex items-center gap-2 font-fredoka font-bold text-lg text-chocolate hover:scale-[1.02] transition-transform"
+            >
                 <div className="w-7 h-7">
                     <DonutLogoIcon />
                 </div>

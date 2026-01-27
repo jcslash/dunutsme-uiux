@@ -16,6 +16,14 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenLogin }) => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    e.preventDefault();
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <nav 
       className={`fixed top-0 left-0 right-0 z-50 px-8 py-4 flex justify-between items-center transition-all duration-300 border-b ${
@@ -34,9 +42,20 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenLogin }) => {
       </a>
       
       <div className="hidden md:flex items-center gap-8">
-        <a href="#how-it-works" className="font-dm-sans font-medium text-chocolate hover:text-glaze-pink transition-colors text-[0.95rem]">How It Works</a>
-        <a href="#features" className="font-dm-sans font-medium text-chocolate hover:text-glaze-pink transition-colors text-[0.95rem]">Features</a>
-        <a href="#mission" className="font-dm-sans font-medium text-chocolate hover:text-glaze-pink transition-colors text-[0.95rem]">Mission</a>
+        <a 
+            href="#how-it-works" 
+            onClick={(e) => scrollToSection(e, 'how-it-works')}
+            className="font-dm-sans font-medium text-chocolate hover:text-glaze-pink transition-colors text-[0.95rem]"
+        >
+            How It Works
+        </a>
+        <a 
+            href="#features" 
+            onClick={(e) => scrollToSection(e, 'features')}
+            className="font-dm-sans font-medium text-chocolate hover:text-glaze-pink transition-colors text-[0.95rem]"
+        >
+            Features
+        </a>
         <button 
             onClick={onOpenLogin}
             className="inline-flex items-center justify-center font-fredoka font-semibold text-base text-white bg-gradient-to-br from-glaze-pink to-glaze-orange px-7 py-3 rounded-full shadow-glow-pink hover:-translate-y-0.5 hover:shadow-lg transition-all active:translate-y-0"

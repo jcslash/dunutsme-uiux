@@ -9,9 +9,10 @@ import {
 interface DashboardLayoutProps {
     children: React.ReactNode;
     onViewPage?: () => void;
+    onLogout: () => void;
 }
 
-export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, onViewPage }) => {
+export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, onViewPage, onLogout }) => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     return (
@@ -43,9 +44,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, onVi
                     {/* Main Menu */}
                     <div className="space-y-1">
                          <NavItem icon={HomeIcon} label="Home" active />
-                         <div onClick={onViewPage} className="cursor-pointer">
-                             <NavItem icon={ExternalLinkIcon} label="View page" />
-                         </div>
+                         <NavItem icon={ExternalLinkIcon} label="View page" onClick={onViewPage} />
                          <NavItem icon={CompassIcon} label="Explore creators" />
                     </div>
 
@@ -84,7 +83,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, onVi
                     <div>
                         <SectionTitle>More</SectionTitle>
                         <div className="space-y-1">
-                             <NavItem icon={LogOutIcon} label="Log out" />
+                             <NavItem icon={LogOutIcon} label="Log out" onClick={onLogout} />
                         </div>
                     </div>
                 </div>
@@ -140,12 +139,14 @@ const SectionTitle: React.FC<{children: React.ReactNode}> = ({ children }) => (
     <h3 className="px-3 text-[11px] font-bold uppercase tracking-wider text-chocolate/40 mb-2 font-fredoka">{children}</h3>
 );
 
-const NavItem: React.FC<{icon: React.FC<{className?:string}>, label: string, active?: boolean}> = ({ icon: Icon, label, active }) => (
-    <a className={`
-        flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group
+const NavItem: React.FC<{icon: React.FC<{className?:string}>, label: string, active?: boolean, onClick?: () => void}> = ({ icon: Icon, label, active, onClick }) => (
+    <button 
+        onClick={onClick}
+        className={`
+        w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group text-left
         ${active ? 'bg-cream text-chocolate-dark font-medium shadow-sm' : 'text-chocolate/70 hover:bg-cream hover:text-chocolate-dark'}
     `}>
         <Icon className={`w-5 h-5 ${active ? 'text-glaze-pink' : 'text-chocolate/40 group-hover:text-glaze-pink'} transition-colors`} />
         <span className="text-[14px]">{label}</span>
-    </a>
+    </button>
 );
