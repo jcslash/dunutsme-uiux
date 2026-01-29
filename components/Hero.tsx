@@ -1,19 +1,46 @@
-import React from 'react';
+import React, { useCallback, memo, useMemo } from 'react';
 import { DonutVisual } from './visuals/DonutVisual';
 import { BitcoinIcon, EthereumIcon, SolanaIcon, TetherIcon, BnbIcon, DogeIcon } from './visuals/CryptoLogos';
 
 interface HeroProps {
-    onOpenLogin: () => void;
+  onOpenLogin: () => void;
 }
 
-export const Hero: React.FC<HeroProps> = ({ onOpenLogin }) => {
-  const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+// Memoized crypto icon component
+const CryptoIconWrapper = memo<{ Icon: React.FC<{ className?: string }>; index: number }>(
+  ({ Icon, index }) => (
+    <div 
+      className="w-11 h-11 rounded-full bg-white flex items-center justify-center shadow-soft hover:-translate-y-1 hover:shadow-md transition-all duration-200 overflow-hidden flex-shrink-0 p-2"
+      role="listitem"
+    >
+      <Icon className="w-full h-full" />
+    </div>
+  )
+);
+CryptoIconWrapper.displayName = 'CryptoIconWrapper';
+
+// Static crypto icons array (hoisted outside component)
+const CRYPTO_ICONS = [BitcoinIcon, EthereumIcon, SolanaIcon, TetherIcon, BnbIcon, DogeIcon] as const;
+
+export const Hero: React.FC<HeroProps> = memo(({ onOpenLogin }) => {
+  const scrollToSection = useCallback((e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
     e.preventDefault();
     const element = document.getElementById(id);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
     }
-  };
+  }, []);
+
+  const handleHowItWorksClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>) => {
+    scrollToSection(e, 'how-it-works');
+  }, [scrollToSection]);
+
+  // Memoize crypto icons list
+  const cryptoIconsList = useMemo(() => (
+    CRYPTO_ICONS.map((Icon, idx) => (
+      <CryptoIconWrapper key={idx} Icon={Icon} index={idx} />
+    ))
+  ), []);
 
   return (
     <section 
@@ -24,7 +51,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenLogin }) => {
         {/* Left Content */}
         <div className="animate-fade-in-up order-2 lg:order-1 flex flex-col items-center lg:items-start text-center lg:text-left">
           <div className="inline-flex items-center gap-2 bg-glaze-pink/10 border border-glaze-pink/20 px-4 py-2 rounded-full mb-6">
-            <span className="w-2 h-2 bg-green-badge rounded-full animate-pulse-dot flex-shrink-0"></span>
+            <span className="w-2 h-2 bg-green-badge rounded-full animate-pulse-dot flex-shrink-0" />
             <span className="font-fredoka text-sm font-semibold text-glaze-pink">Crypto-Native Creator Support</span>
           </div>
           
@@ -46,7 +73,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenLogin }) => {
             </button>
             <a 
               href="#how-it-works" 
-              onClick={(e) => scrollToSection(e, 'how-it-works')}
+              onClick={handleHowItWorksClick}
               className="inline-flex items-center justify-center font-fredoka font-semibold text-base text-chocolate-dark bg-white border-[1.5px] border-chocolate/15 px-7 py-3.5 rounded-full hover:border-chocolate hover:shadow-soft transition-all min-w-[160px]"
             >
               See How It Works
@@ -54,19 +81,17 @@ export const Hero: React.FC<HeroProps> = ({ onOpenLogin }) => {
           </div>
           
           <div className="flex gap-3 items-center" role="list" aria-label="Supported cryptocurrencies">
-            {[BitcoinIcon, EthereumIcon, SolanaIcon, TetherIcon, BnbIcon, DogeIcon].map((Icon, idx) => (
-                <div key={idx} className="w-11 h-11 rounded-full bg-white flex items-center justify-center shadow-soft hover:-translate-y-1 hover:shadow-md transition-all duration-200 overflow-hidden flex-shrink-0 p-2">
-                    <Icon className="w-full h-full" />
-                </div>
-            ))}
+            {cryptoIconsList}
           </div>
         </div>
 
         {/* Right Visual */}
         <div className="order-1 lg:order-2 flex justify-center items-center min-h-[400px] lg:min-h-[500px] animate-fade-in-up delay-200">
-           <DonutVisual />
+          <DonutVisual />
         </div>
       </div>
     </section>
   );
-};
+});
+
+Hero.displayName = 'Hero';

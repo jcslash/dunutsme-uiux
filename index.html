@@ -4,11 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#FFF9F5">
+    <meta name="description" content="Donuts Me - The sweetest way to support creators. One link, any chain, zero fees. Accept crypto tips in BTC, ETH, SOL, and 50+ tokens.">
     <title>Donuts Me — Sweet Support for Creators</title>
     
-    <!-- Fonts -->
+    <!-- Preconnect to external resources for faster loading -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://esm.sh" crossorigin>
+    <link rel="preconnect" href="https://ui-avatars.com" crossorigin>
+    
+    <!-- DNS prefetch for faster resolution -->
+    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+    <link rel="dns-prefetch" href="https://images.unsplash.com">
+    
+    <!-- Preload critical fonts -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" as="style">
+    
+    <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
     
     <!-- Tailwind -->
@@ -47,8 +59,14 @@
       }
     </script>
 
-    <!-- Custom Animations that match the original CSS -->
+    <!-- Custom Animations and Performance Optimizations -->
     <style>
+      /* Critical CSS - Above the fold styles */
+      #root {
+        min-height: 100vh;
+      }
+      
+      /* Animations */
       @keyframes float-donut {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-12px); }
@@ -69,28 +87,79 @@
           from { opacity: 0; transform: translateY(30px); }
           to { opacity: 1; transform: translateY(0); }
       }
+      @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+      }
 
       .animate-float-donut { animation: float-donut 4s ease-in-out infinite; }
       .animate-float-notification { animation: float-notification 5s ease-in-out infinite; animation-delay: 0.5s; }
       .animate-float-amount { animation: float-amount 4.5s ease-in-out infinite; animation-delay: 1s; }
       .animate-pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
       .animate-fade-in-up { animation: fadeInUp 0.8s ease-out forwards; }
+      .animate-spin { animation: spin 1s linear infinite; }
       .delay-200 { animation-delay: 0.2s; }
       
       /* Smooth scrolling */
-      html { scroll-behavior: smooth; }
+      html { 
+        scroll-behavior: smooth;
+      }
+      
+      /* Optimize font rendering */
+      body {
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      
+      /* Reduce layout shift for images */
+      img {
+        content-visibility: auto;
+      }
+      
+      /* Custom scrollbar for dashboard */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(93, 64, 55, 0.15);
+        border-radius: 3px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(93, 64, 55, 0.25);
+      }
+      
+      /* Reduce motion for users who prefer it */
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+        html {
+          scroll-behavior: auto;
+        }
+      }
     </style>
-<script type="importmap">
-{
-  "imports": {
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "react": "https://esm.sh/react@^19.2.4"
-  }
-}
-</script>
+
+    <!-- Import map for React -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+        "react/": "https://esm.sh/react@^19.2.4/",
+        "react": "https://esm.sh/react@^19.2.4"
+      }
+    }
+    </script>
 </head>
 <body class="bg-cream text-chocolate-dark font-dm-sans antialiased overflow-x-hidden">
     <div id="root"></div>
+    <script type="module" src="./index.tsx"></script>
 </body>
 </html>
