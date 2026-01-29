@@ -1,23 +1,58 @@
 import React, { useState, useCallback, memo } from 'react';
 import { DonutLogoIcon } from './visuals/Icons';
+import { createUser, isUsernameTaken, type UserProfile } from '../lib/userService';
+import type { User as PrivyUser } from '@privy-io/react-auth';
 
 interface OnboardingProps {
-  onFinish: () => void;
+  privyUser: PrivyUser;
+  onFinish: (profile: UserProfile) => void;
   onLogout: () => void;
 }
 
-export const Onboarding: React.FC<OnboardingProps> = memo(({ onFinish, onLogout }) => {
+export const Onboarding: React.FC<OnboardingProps> = memo(({ privyUser, onFinish, onLogout }) => {
   const [username, setUsername] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = useCallback(() => {
-    if (username) {
-      onFinish();
+  const handleSubmit = useCallback(async () => {
+    if (!username || isSubmitting) return;
+    
+    setIsSubmitting(true);
+    setError(null);
+    
+    try {
+      // Check if username is already taken
+      if (isUsernameTaken(username)) {
+        setError('This username is already taken. Please choose another one.');
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Get user info from Privy
+      const email = privyUser.email?.address;
+      const walletAddress = privyUser.wallet?.address;
+      
+      // Create user profile
+      const profile = createUser(privyUser.id, username, {
+        email,
+        walletAddress,
+        displayName: username,
+      });
+      
+      // Notify parent component
+      onFinish(profile);
+    } catch (err) {
+      console.error('Error creating user:', err);
+      setError('Something went wrong. Please try again.');
+      setIsSubmitting(false);
     }
-  }, [username, onFinish]);
+  }, [username, isSubmitting, privyUser, onFinish]);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     // Only allow alphanumeric, underscore, and hyphen
-    setUsername(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''));
+    const value = e.target.value.replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase();
+    setUsername(value);
+    setError(null); // Clear error when user types
   }, []);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -26,7 +61,12 @@ export const Onboarding: React.FC<OnboardingProps> = memo(({ onFinish, onLogout 
     }
   }, [handleSubmit]);
 
-  const isUsernameValid = username.length > 0;
+  const isUsernameValid = username.length >= 3 && username.length <= 30;
+  const usernameHint = username.length > 0 && username.length < 3 
+    ? 'Username must be at least 3 characters'
+    : username.length > 30 
+    ? 'Username must be 30 characters or less'
+    : null;
 
   return (
     <div className="min-h-screen bg-cream flex flex-col font-dm-sans">
@@ -47,17 +87,33 @@ export const Onboarding: React.FC<OnboardingProps> = memo(({ onFinish, onLogout 
       <main className="flex-grow flex flex-col items-center pt-16 px-4 sm:px-6">
         <div className="w-full max-w-[520px]">
           
+          {/* Welcome Message */}
+          {privyUser.email?.address && (
+            <div className="mb-6 p-4 bg-white rounded-xl border border-chocolate/5 shadow-sm">
+              <p className="text-sm text-chocolate/60">
+                Welcome! You're signing up with{' '}
+                <span className="font-semibold text-chocolate-dark">
+                  {privyUser.email.address}
+                </span>
+              </p>
+            </div>
+          )}
+          
           {/* Headings */}
           <h1 className="font-fredoka text-3xl sm:text-4xl font-bold text-chocolate-dark mb-3">
-            Create your account
+            Create your page
           </h1>
           <p className="text-lg text-chocolate/60 mb-8 font-medium">
-            Choose a username for your page.
+            Choose a unique username for your Donuts Me page.
           </p>
 
           {/* Input Field Container */}
-          <div className="relative group mb-8">
-            <div className="w-full bg-white rounded-2xl border-2 border-chocolate/5 px-5 py-4 flex items-center shadow-sm transition-all focus-within:border-glaze-pink focus-within:shadow-glow-pink focus-within:ring-4 focus-within:ring-glaze-pink/10">
+          <div className="relative group mb-2">
+            <div className={`w-full bg-white rounded-2xl border-2 px-5 py-4 flex items-center shadow-sm transition-all focus-within:shadow-glow-pink focus-within:ring-4 focus-within:ring-glaze-pink/10 ${
+              error 
+                ? 'border-red-400 focus-within:border-red-400' 
+                : 'border-chocolate/5 focus-within:border-glaze-pink'
+            }`}>
               <span className="font-fredoka text-lg sm:text-xl text-chocolate/40 select-none mr-1">
                 donutsme.app/
               </span>
@@ -69,10 +125,12 @@ export const Onboarding: React.FC<OnboardingProps> = memo(({ onFinish, onLogout 
                 placeholder="yourname"
                 className="flex-grow font-fredoka text-lg sm:text-xl text-chocolate-dark placeholder:text-chocolate/20 bg-transparent outline-none min-w-0"
                 autoFocus
+                disabled={isSubmitting}
+                maxLength={30}
               />
             </div>
             {/* Validation/Status Hint */}
-            {isUsernameValid && (
+            {isUsernameValid && !error && (
               <div className="absolute right-4 top-1/2 -translate-y-1/2">
                 <div className="w-6 h-6 rounded-full bg-green-badge flex items-center justify-center text-white text-xs">
                   ✓
@@ -81,13 +139,28 @@ export const Onboarding: React.FC<OnboardingProps> = memo(({ onFinish, onLogout 
             )}
           </div>
 
+          {/* Error or Hint Message */}
+          {(error || usernameHint) && (
+            <p className={`text-sm mb-6 ${error ? 'text-red-500' : 'text-chocolate/50'}`}>
+              {error || usernameHint}
+            </p>
+          )}
+          {!error && !usernameHint && <div className="mb-6" />}
+
           {/* Submit Button */}
           <button 
-            className="w-full py-4 rounded-full bg-gradient-to-br from-glaze-pink to-glaze-orange text-white font-fredoka font-bold text-lg shadow-glow-pink hover:-translate-y-1 hover:shadow-lg transition-all active:translate-y-0 disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:shadow-none"
-            disabled={!isUsernameValid}
+            className="w-full py-4 rounded-full bg-gradient-to-br from-glaze-pink to-glaze-orange text-white font-fredoka font-bold text-lg shadow-glow-pink hover:-translate-y-1 hover:shadow-lg transition-all active:translate-y-0 disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:shadow-none flex items-center justify-center gap-2"
+            disabled={!isUsernameValid || isSubmitting}
             onClick={handleSubmit}
           >
-            Sign up
+            {isSubmitting ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Creating...
+              </>
+            ) : (
+              'Create my page'
+            )}
           </button>
 
           {/* Footer Terms */}

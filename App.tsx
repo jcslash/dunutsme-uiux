@@ -1,10 +1,11 @@
-import React, { useState, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useCallback, useEffect, lazy, Suspense } from 'react';
+import { usePrivy } from '@privy-io/react-auth';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { HowItWorks } from './components/HowItWorks';
 import { Features } from './components/Features';
 import { Footer } from './components/Footer';
-import { LoginModal } from './components/LoginModal';
+import { isUserRegistered, getUserByPrivyId, type UserProfile } from './lib/userService';
 
 // Lazy load components that are not immediately visible
 const Onboarding = lazy(() => import('./components/Onboarding').then(m => ({ default: m.Onboarding })));
@@ -19,63 +20,113 @@ const LoadingFallback: React.FC = () => (
   </div>
 );
 
+// App state types
+type AppView = 'landing' | 'onboarding' | 'dashboard' | 'publicProfile';
+
 const App: React.FC = () => {
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isDashboardReady, setIsDashboardReady] = useState(false);
-  const [showPublicProfile, setShowPublicProfile] = useState(false);
-
-  // Memoized callbacks to prevent unnecessary re-renders
-  const openLogin = useCallback(() => setIsLoginOpen(true), []);
-  const closeLogin = useCallback(() => setIsLoginOpen(false), []);
+  const { ready, authenticated, user, login, logout } = usePrivy();
   
-  const handleLoginSuccess = useCallback(() => {
-    setIsLoggedIn(true);
-  }, []);
+  const [currentView, setCurrentView] = useState<AppView>('landing');
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isCheckingUser, setIsCheckingUser] = useState(false);
 
-  const handleOnboardingFinish = useCallback(() => {
-    setIsDashboardReady(true);
-  }, []);
+  // Check user registration status when authenticated
+  useEffect(() => {
+    if (ready && authenticated && user) {
+      setIsCheckingUser(true);
+      
+      // Get Privy user ID
+      const privyId = user.id;
+      
+      // Check if user is already registered
+      if (isUserRegistered(privyId)) {
+        // User exists, get their profile and go to dashboard
+        const profile = getUserByPrivyId(privyId);
+        setUserProfile(profile);
+        setCurrentView('dashboard');
+      } else {
+        // New user, go to onboarding
+        setCurrentView('onboarding');
+      }
+      
+      setIsCheckingUser(false);
+    } else if (ready && !authenticated) {
+      // User logged out, reset to landing
+      setCurrentView('landing');
+      setUserProfile(null);
+    }
+  }, [ready, authenticated, user]);
 
-  const handleLogout = useCallback(() => {
-    setIsLoggedIn(false);
-    setIsDashboardReady(false);
-    setShowPublicProfile(false);
-    // Scroll to top to ensure we land on the Hero section
+  // Handle Privy login
+  const handleOpenLogin = useCallback(() => {
+    login();
+  }, [login]);
+
+  // Handle logout
+  const handleLogout = useCallback(async () => {
+    await logout();
+    setCurrentView('landing');
+    setUserProfile(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [logout]);
+
+  // Handle onboarding completion
+  const handleOnboardingFinish = useCallback((profile: UserProfile) => {
+    setUserProfile(profile);
+    setCurrentView('dashboard');
   }, []);
 
-  const handleViewPage = useCallback(() => setShowPublicProfile(true), []);
-  const handleLogoClick = useCallback(() => setShowPublicProfile(false), []);
+  // Handle view page
+  const handleViewPage = useCallback(() => {
+    setCurrentView('publicProfile');
+  }, []);
 
-  // 1. Public Profile View (Accessible from dashboard or direct if we had router)
-  if (showPublicProfile) {
+  // Handle logo click (return to dashboard from public profile)
+  const handleLogoClick = useCallback(() => {
+    setCurrentView('dashboard');
+  }, []);
+
+  // Show loading while Privy is initializing or checking user
+  if (!ready || isCheckingUser) {
+    return <LoadingFallback />;
+  }
+
+  // 1. Public Profile View
+  if (currentView === 'publicProfile') {
     return (
       <Suspense fallback={<LoadingFallback />}>
-        <PublicProfile onLogoClick={handleLogoClick} />
+        <PublicProfile 
+          onLogoClick={handleLogoClick} 
+          userProfile={userProfile}
+        />
       </Suspense>
     );
   }
 
   // 2. Dashboard View
-  if (isDashboardReady) {
+  if (currentView === 'dashboard' && authenticated) {
     return (
       <Suspense fallback={<LoadingFallback />}>
         <DashboardLayout 
           onViewPage={handleViewPage} 
           onLogout={handleLogout}
+          userProfile={userProfile}
         >
-          <DashboardHome />
+          <DashboardHome userProfile={userProfile} />
         </DashboardLayout>
       </Suspense>
     );
   }
 
   // 3. Onboarding View
-  if (isLoggedIn) {
+  if (currentView === 'onboarding' && authenticated && user) {
     return (
       <Suspense fallback={<LoadingFallback />}>
-        <Onboarding onFinish={handleOnboardingFinish} onLogout={handleLogout} />
+        <Onboarding 
+          privyUser={user}
+          onFinish={handleOnboardingFinish} 
+          onLogout={handleLogout} 
+        />
       </Suspense>
     );
   }
@@ -83,18 +134,13 @@ const App: React.FC = () => {
   // 4. Landing Page View
   return (
     <div className="min-h-screen flex flex-col">
-      <Navbar onOpenLogin={openLogin} />
+      <Navbar onOpenLogin={handleOpenLogin} />
       <main id="main-content" className="flex-grow">
-        <Hero onOpenLogin={openLogin} />
+        <Hero onOpenLogin={handleOpenLogin} />
         <HowItWorks />
         <Features />
       </main>
       <Footer />
-      <LoginModal 
-        isOpen={isLoginOpen} 
-        onClose={closeLogin} 
-        onLoginSuccess={handleLoginSuccess}
-      />
     </div>
   );
 };

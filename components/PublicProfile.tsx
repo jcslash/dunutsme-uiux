@@ -3,9 +3,11 @@ import {
   DonutLogoIcon, TwitterIcon, InstagramIcon, GlobeIcon, 
   MenuIcon, HeartIcon 
 } from './visuals/Icons';
+import type { UserProfile } from '../lib/userService';
 
 interface PublicProfileProps {
   onLogoClick?: () => void;
+  userProfile?: UserProfile | null;
 }
 
 // Memoized SocialButton component
@@ -55,6 +57,7 @@ interface DonationPanelProps {
   setName: (val: string) => void;
   message: string;
   setMessage: (val: string) => void;
+  creatorName: string;
 }
 
 const DonationPanel = memo<DonationPanelProps>(({ 
@@ -65,7 +68,8 @@ const DonationPanel = memo<DonationPanelProps>(({
   name, 
   setName, 
   message, 
-  setMessage 
+  setMessage,
+  creatorName 
 }) => {
   const handleCustomAmountChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setCustomAmount(e.target.value);
@@ -85,7 +89,7 @@ const DonationPanel = memo<DonationPanelProps>(({
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-chocolate/5 p-6">
       <h2 className="font-fredoka text-xl font-bold text-chocolate-dark mb-4 flex items-center gap-2">
-        Buy <span className="text-glaze-pink">CJ</span> a Donut
+        Buy <span className="text-glaze-pink">{creatorName}</span> a Donut
       </h2>
 
       <div className="bg-[#FFF0F5] rounded-xl p-4 mb-4 border border-glaze-pink/10">
@@ -152,11 +156,16 @@ const SUPPORTERS_DATA = [
   { name: 'Anon', action: 'bought 5 donuts', message: 'Keep building!', amount: 5 },
 ] as const;
 
-export const PublicProfile: React.FC<PublicProfileProps> = memo(({ onLogoClick }) => {
+export const PublicProfile: React.FC<PublicProfileProps> = memo(({ onLogoClick, userProfile }) => {
   const [amount, setAmount] = useState(3);
   const [customAmount, setCustomAmount] = useState('');
   const [name, setName] = useState('');
   const [message, setMessage] = useState('');
+
+  // Get display info from user profile
+  const displayName = userProfile?.displayName || userProfile?.username || 'Creator';
+  const username = userProfile?.username || 'creator';
+  const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&size=200`;
 
   const toggleAmount = useCallback((val: number) => {
     setAmount(val);
@@ -197,7 +206,8 @@ export const PublicProfile: React.FC<PublicProfileProps> = memo(({ onLogoClick }
     setName,
     message,
     setMessage,
-  }), [amount, toggleAmount, customAmount, name, message]);
+    creatorName: displayName,
+  }), [amount, toggleAmount, customAmount, name, message, displayName]);
 
   return (
     <div className="min-h-screen bg-cream font-dm-sans text-chocolate-dark">
@@ -258,8 +268,8 @@ export const PublicProfile: React.FC<PublicProfileProps> = memo(({ onLogoClick }
             <div className="bg-white rounded-2xl shadow-soft border border-chocolate/5 p-6 sm:p-8 flex flex-col items-center sm:items-start text-center sm:text-left">
               <div className="w-28 h-28 rounded-full border-4 border-white shadow-md bg-white -mt-20 mb-4 overflow-hidden">
                 <img 
-                  src="https://ui-avatars.com/api/?name=CJ+Chiu&background=random&size=200" 
-                  alt="CJ Chiu" 
+                  src={avatarUrl}
+                  alt={displayName}
                   className="w-full h-full object-cover"
                   loading="lazy"
                   decoding="async"
@@ -267,11 +277,11 @@ export const PublicProfile: React.FC<PublicProfileProps> = memo(({ onLogoClick }
               </div>
               
               <div className="w-full">
-                <h1 className="font-fredoka text-3xl font-bold text-chocolate-dark mb-1">CJ 邱垂金</h1>
-                <p className="text-chocolate/60 text-base mb-6">Creating educational content about Web3 & Design</p>
+                <h1 className="font-fredoka text-3xl font-bold text-chocolate-dark mb-1">{displayName}</h1>
+                <p className="text-chocolate/60 text-base mb-6">donutsme.app/{username}</p>
                 
                 <div className="text-chocolate/80 leading-relaxed mb-8">
-                  <p>Hey there! 👋 I'm CJ. I build things on the internet and share what I learn along the way. Your support helps me keep creating free tutorials and resources for the community.</p>
+                  <p>Hey there! 👋 Welcome to my page. Your support helps me keep creating content for the community.</p>
                 </div>
 
                 <div className="flex items-center justify-center sm:justify-start gap-3">

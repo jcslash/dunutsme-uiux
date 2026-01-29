@@ -4,6 +4,11 @@ import {
   GiftIcon, FileTextIcon
 } from '../visuals/Icons';
 import { BitcoinIcon } from '../visuals/CryptoLogos';
+import type { UserProfile } from '../../lib/userService';
+
+interface DashboardHomeProps {
+  userProfile?: UserProfile | null;
+}
 
 // Memoized LegendItem component
 const LegendItem = memo<{ color: string; label: string; value: string }>(({ color, label, value }) => (
@@ -63,12 +68,17 @@ const FEATURE_CARDS_DATA = [
   },
 ] as const;
 
-export const DashboardHome: React.FC = memo(() => {
+export const DashboardHome: React.FC<DashboardHomeProps> = memo(({ userProfile }) => {
   const [autoConvertBTC, setAutoConvertBTC] = useState(false);
 
   const handleToggleBTC = useCallback(() => {
     setAutoConvertBTC(prev => !prev);
   }, []);
+
+  // Get display info from user profile
+  const displayName = userProfile?.displayName || userProfile?.username || 'User';
+  const username = userProfile?.username || 'yourname';
+  const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&size=128`;
 
   // Memoize feature cards
   const featureCards = useMemo(() => (
@@ -85,17 +95,17 @@ export const DashboardHome: React.FC = memo(() => {
         <div className="flex flex-col sm:flex-row items-center gap-5">
           <div className="w-24 h-24 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-[#FFD700] to-[#FFA500] p-1 shadow-md">
             <img 
-              src="https://ui-avatars.com/api/?name=CJ+Chiu&background=random&size=128" 
-              alt="Profile" 
+              src={avatarUrl}
+              alt={displayName}
               className="w-full h-full rounded-full border-4 border-white"
               loading="lazy"
               decoding="async"
             />
           </div>
           <div>
-            <h1 className="font-fredoka text-2xl font-bold text-chocolate-dark mb-1">Hi, CJ 邱垂金</h1>
+            <h1 className="font-fredoka text-2xl font-bold text-chocolate-dark mb-1">Hi, {displayName}</h1>
             <a href="#" className="text-chocolate/50 hover:text-glaze-pink transition-colors font-medium text-sm flex items-center justify-center sm:justify-start gap-1">
-              donutsme.app/cjchiu
+              donutsme.app/{username}
             </a>
           </div>
         </div>

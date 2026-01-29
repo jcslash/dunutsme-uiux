@@ -1,6 +1,8 @@
 import React, { StrictMode, Component, ErrorInfo, ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
+import { PrivyProvider } from '@privy-io/react-auth';
 import App from './App';
+import { PRIVY_APP_ID, privyConfig } from './lib/privyConfig';
 
 // Error Boundary Component for graceful error handling
 interface ErrorBoundaryState {
@@ -67,7 +69,12 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      <PrivyProvider
+        appId={PRIVY_APP_ID}
+        config={privyConfig}
+      >
+        <App />
+      </PrivyProvider>
     </ErrorBoundary>
   </StrictMode>
 );

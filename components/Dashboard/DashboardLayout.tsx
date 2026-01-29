@@ -5,11 +5,13 @@ import {
   ImageIcon, MessageSquareIcon, LayoutIcon, ZapIcon, 
   CreditCardIcon, SettingsIcon, LogOutIcon, BellIcon, MenuIcon, ChevronDownIcon 
 } from '../visuals/Icons';
+import type { UserProfile } from '../../lib/userService';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
   onViewPage?: () => void;
   onLogout: () => void;
+  userProfile?: UserProfile | null;
 }
 
 // Memoized SectionTitle component
@@ -66,7 +68,7 @@ const SETTINGS_ITEMS = [
   { icon: SettingsIcon, label: 'Settings' },
 ] as const;
 
-export const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children, onViewPage, onLogout }) => {
+export const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children, onViewPage, onLogout, userProfile }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleCloseSidebar = useCallback(() => {
@@ -76,6 +78,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children,
   const handleOpenSidebar = useCallback(() => {
     setSidebarOpen(true);
   }, []);
+
+  // Get display name from user profile
+  const displayName = userProfile?.displayName || userProfile?.username || 'User';
+  const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
 
   // Memoize main nav items
   const mainNavItems = useMemo(() => (
@@ -187,6 +193,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children,
             >
               <MenuIcon className="w-6 h-6" />
             </button>
+            {/* Show username link */}
+            {userProfile?.username && (
+              <div className="hidden sm:flex items-center gap-2 text-sm text-chocolate/60">
+                <span>donutsme.app/</span>
+                <span className="font-semibold text-chocolate-dark">{userProfile.username}</span>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-4 sm:gap-6">
@@ -202,15 +215,15 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children,
             <button className="flex items-center gap-3 pl-2 pr-1 py-1 rounded-full hover:bg-cream transition-colors group">
               <div className="w-9 h-9 rounded-full bg-gradient-to-br from-glaze-orange to-glaze-pink p-[2px]">
                 <img 
-                  src="https://ui-avatars.com/api/?name=CJ+Chiu&background=random" 
-                  alt="User" 
+                  src={avatarUrl}
+                  alt={displayName} 
                   className="w-full h-full rounded-full border-2 border-white object-cover"
                   loading="lazy"
                   decoding="async"
                 />
               </div>
               <span className="hidden sm:block font-medium text-sm text-chocolate group-hover:text-chocolate-dark">
-                CJ Chiu
+                {displayName}
               </span>
               <ChevronDownIcon className="w-4 h-4 text-chocolate/40 hidden sm:block" />
             </button>
