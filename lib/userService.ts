@@ -8,10 +8,11 @@ export interface UserProfile {
   privyId: string;
   username: string;
   displayName?: string;
+  bio?: string;
   email?: string;
   walletAddress?: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: number;
+  updatedAt?: number;
 }
 
 const STORAGE_KEY = 'donutsme_users';
@@ -70,17 +71,19 @@ export const createUser = (
   username: string,
   additionalData?: {
     displayName?: string;
+    bio?: string;
     email?: string;
     walletAddress?: string;
   }
 ): UserProfile => {
   const users = getAllUsers();
   
-  const now = new Date().toISOString();
+  const now = Date.now();
   const newUser: UserProfile = {
     privyId,
     username: username.toLowerCase(),
     displayName: additionalData?.displayName,
+    bio: additionalData?.bio,
     email: additionalData?.email,
     walletAddress: additionalData?.walletAddress,
     createdAt: now,
@@ -110,13 +113,28 @@ export const updateUser = (
   const updatedUser: UserProfile = {
     ...existingUser,
     ...updates,
-    updatedAt: new Date().toISOString(),
+    updatedAt: Date.now(),
   };
   
   users[privyId] = updatedUser;
   saveAllUsers(users);
   
   return updatedUser;
+};
+
+/**
+ * 更新用戶個人資料（別名函數，方便使用）
+ */
+export const updateUserProfile = (
+  privyId: string,
+  updates: {
+    displayName?: string;
+    bio?: string;
+    email?: string;
+    walletAddress?: string;
+  }
+): UserProfile | null => {
+  return updateUser(privyId, updates);
 };
 
 /**
