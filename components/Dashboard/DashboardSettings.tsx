@@ -1,5 +1,5 @@
-import React, { memo, useState, useCallback } from 'react';
-import { EditIcon, SettingsIcon } from '../visuals/Icons';
+import React, { memo, useState, useCallback, useMemo } from 'react';
+import { EditIcon } from '../visuals/Icons';
 import { updateUserProfile, type UserProfile } from '../../lib/userService';
 
 interface DashboardSettingsProps {
@@ -7,6 +7,52 @@ interface DashboardSettingsProps {
   onProfileUpdate?: (profile: UserProfile) => void;
   onLogout?: () => void;
 }
+
+// Static JSX hoisted outside component (Rule 6.3: Hoist Static JSX Elements)
+const ConnectedAccountsPlaceholder = (
+  <div className="p-4 bg-cream rounded-xl text-center text-chocolate-dark/60 text-sm">
+    Account connections are managed through Privy authentication.
+  </div>
+);
+
+// Memoized Toggle component (Rule 5.5: Extract to Memoized Components)
+const Toggle = memo<{
+  enabled: boolean;
+  onToggle: () => void;
+}>(({ enabled, onToggle }) => (
+  <button
+    onClick={onToggle}
+    className={`relative w-12 h-6 rounded-full transition-colors ${
+      enabled ? 'bg-glaze-pink' : 'bg-chocolate/20'
+    }`}
+    role="switch"
+    aria-checked={enabled}
+  >
+    <span
+      className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+        enabled ? 'left-7' : 'left-1'
+      }`}
+    />
+  </button>
+));
+Toggle.displayName = 'Toggle';
+
+// Memoized NotificationSetting component (Rule 5.5)
+const NotificationSetting = memo<{
+  title: string;
+  description: string;
+  enabled: boolean;
+  onToggle: () => void;
+}>(({ title, description, enabled, onToggle }) => (
+  <div className="flex items-center justify-between">
+    <div>
+      <p className="font-medium text-chocolate-dark">{title}</p>
+      <p className="text-sm text-chocolate-dark/60">{description}</p>
+    </div>
+    <Toggle enabled={enabled} onToggle={onToggle} />
+  </div>
+));
+NotificationSetting.displayName = 'NotificationSetting';
 
 export const DashboardSettings: React.FC<DashboardSettingsProps> = memo(({ 
   userProfile, 
@@ -20,19 +66,37 @@ export const DashboardSettings: React.FC<DashboardSettingsProps> = memo(({
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [marketingEmails, setMarketingEmails] = useState(false);
 
+  // Derive initials during render (Rule 5.1: Calculate Derived State During Rendering)
+  const initials = useMemo(() => {
+    if (userProfile?.displayName) {
+      return userProfile.displayName
+        .split(' ')
+        .map(n => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
+    }
+    return userProfile?.username?.slice(0, 2).toUpperCase() || 'U';
+  }, [userProfile?.displayName, userProfile?.username]);
+
+  // Derive button text during render (Rule 5.1)
+  const saveButtonText = isSaving ? 'Saving...' : 'Save Changes';
+
+  // Event handlers with useCallback (Rule 5.7)
   const handleEdit = useCallback(() => {
     setIsEditing(true);
     setDisplayName(userProfile?.displayName || '');
     setBio(userProfile?.bio || '');
-  }, [userProfile]);
+  }, [userProfile?.displayName, userProfile?.bio]);
 
   const handleCancel = useCallback(() => {
     setIsEditing(false);
     setDisplayName(userProfile?.displayName || '');
     setBio(userProfile?.bio || '');
-  }, [userProfile]);
+  }, [userProfile?.displayName, userProfile?.bio]);
 
   const handleSave = useCallback(async () => {
+    // Early return (Rule 7.8)
     if (!userProfile) return;
     
     setIsSaving(true);
@@ -55,14 +119,27 @@ export const DashboardSettings: React.FC<DashboardSettingsProps> = memo(({
 
   const handleDeleteAccount = useCallback(() => {
     if (window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
-      // TODO: Implement account deletion
       alert('Account deletion feature coming soon!');
     }
   }, []);
 
-  const initials = userProfile?.displayName 
-    ? userProfile.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-    : userProfile?.username?.slice(0, 2).toUpperCase() || 'U';
+  // Input handlers
+  const handleDisplayNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setDisplayName(e.target.value);
+  }, []);
+
+  const handleBioChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setBio(e.target.value);
+  }, []);
+
+  // Functional setState for toggles (Rule 5.9)
+  const handleToggleEmailNotifications = useCallback(() => {
+    setEmailNotifications(prev => !prev);
+  }, []);
+
+  const handleToggleMarketingEmails = useCallback(() => {
+    setMarketingEmails(prev => !prev);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -76,7 +153,8 @@ export const DashboardSettings: React.FC<DashboardSettingsProps> = memo(({
       <div className="bg-white rounded-2xl p-6 border border-chocolate/5">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-chocolate-dark">Profile</h2>
-          {!isEditing && (
+          {/* Explicit conditional rendering (Rule 6.8) */}
+          {!isEditing ? (
             <button
               onClick={handleEdit}
               className="flex items-center gap-2 text-chocolate-dark/70 hover:text-chocolate-dark transition-colors"
@@ -84,7 +162,7 @@ export const DashboardSettings: React.FC<DashboardSettingsProps> = memo(({
               <EditIcon className="w-4 h-4" />
               Edit
             </button>
-          )}
+          ) : null}
         </div>
 
         {/* Avatar */}
@@ -92,11 +170,11 @@ export const DashboardSettings: React.FC<DashboardSettingsProps> = memo(({
           <div className="w-16 h-16 rounded-full bg-gradient-to-br from-glaze-pink to-glaze-orange flex items-center justify-center text-white text-xl font-bold">
             {initials}
           </div>
-          {isEditing && (
+          {isEditing ? (
             <button className="text-sm text-glaze-pink hover:underline">
               Change avatar
             </button>
-          )}
+          ) : null}
         </div>
 
         {/* Profile Fields */}
@@ -113,7 +191,7 @@ export const DashboardSettings: React.FC<DashboardSettingsProps> = memo(({
               <input
                 type="text"
                 value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
+                onChange={handleDisplayNameChange}
                 placeholder="Your display name"
                 className="w-full px-4 py-2 rounded-xl border border-chocolate/10 focus:border-glaze-pink focus:ring-2 focus:ring-glaze-pink/20 outline-none transition-all"
               />
@@ -127,7 +205,7 @@ export const DashboardSettings: React.FC<DashboardSettingsProps> = memo(({
             {isEditing ? (
               <textarea
                 value={bio}
-                onChange={(e) => setBio(e.target.value)}
+                onChange={handleBioChange}
                 placeholder="Tell your supporters about yourself"
                 rows={3}
                 className="w-full px-4 py-2 rounded-xl border border-chocolate/10 focus:border-glaze-pink focus:ring-2 focus:ring-glaze-pink/20 outline-none transition-all resize-none"
@@ -137,14 +215,14 @@ export const DashboardSettings: React.FC<DashboardSettingsProps> = memo(({
             )}
           </div>
 
-          {isEditing && (
+          {isEditing ? (
             <div className="flex gap-3 pt-2">
               <button
                 onClick={handleSave}
                 disabled={isSaving}
                 className="px-6 py-2 bg-glaze-pink text-white font-semibold rounded-full hover:bg-glaze-pink/90 transition-colors disabled:opacity-50"
               >
-                {isSaving ? 'Saving...' : 'Save Changes'}
+                {saveButtonText}
               </button>
               <button
                 onClick={handleCancel}
@@ -153,7 +231,7 @@ export const DashboardSettings: React.FC<DashboardSettingsProps> = memo(({
                 Cancel
               </button>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -163,9 +241,7 @@ export const DashboardSettings: React.FC<DashboardSettingsProps> = memo(({
         <p className="text-chocolate-dark/60 text-sm mb-4">
           Manage the accounts linked to your Donuts Me profile via Privy.
         </p>
-        <div className="p-4 bg-cream rounded-xl text-center text-chocolate-dark/60 text-sm">
-          Account connections are managed through Privy authentication.
-        </div>
+        {ConnectedAccountsPlaceholder}
       </div>
 
       {/* Notifications */}
@@ -173,43 +249,18 @@ export const DashboardSettings: React.FC<DashboardSettingsProps> = memo(({
         <h2 className="text-lg font-semibold text-chocolate-dark mb-4">Notifications</h2>
         
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-chocolate-dark">Email notifications</p>
-              <p className="text-sm text-chocolate-dark/60">Receive emails when you get a new supporter</p>
-            </div>
-            <button
-              onClick={() => setEmailNotifications(!emailNotifications)}
-              className={`relative w-12 h-6 rounded-full transition-colors ${
-                emailNotifications ? 'bg-glaze-pink' : 'bg-chocolate/20'
-              }`}
-            >
-              <span
-                className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                  emailNotifications ? 'left-7' : 'left-1'
-                }`}
-              />
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-chocolate-dark">Marketing emails</p>
-              <p className="text-sm text-chocolate-dark/60">Receive updates about new features</p>
-            </div>
-            <button
-              onClick={() => setMarketingEmails(!marketingEmails)}
-              className={`relative w-12 h-6 rounded-full transition-colors ${
-                marketingEmails ? 'bg-glaze-pink' : 'bg-chocolate/20'
-              }`}
-            >
-              <span
-                className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                  marketingEmails ? 'left-7' : 'left-1'
-                }`}
-              />
-            </button>
-          </div>
+          <NotificationSetting
+            title="Email notifications"
+            description="Receive emails when you get a new supporter"
+            enabled={emailNotifications}
+            onToggle={handleToggleEmailNotifications}
+          />
+          <NotificationSetting
+            title="Marketing emails"
+            description="Receive updates about new features"
+            enabled={marketingEmails}
+            onToggle={handleToggleMarketingEmails}
+          />
         </div>
       </div>
 

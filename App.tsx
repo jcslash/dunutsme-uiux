@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useCallback, useEffect, lazy, Suspense, useMemo } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
@@ -8,7 +8,7 @@ import { Footer } from './components/Footer';
 import { isUserRegistered, getUserByPrivyId, type UserProfile } from './lib/userService';
 import type { DashboardPage } from './components/Dashboard/DashboardLayout';
 
-// Lazy load components that are not immediately visible
+// Lazy load components that are not immediately visible (Rule 2.4: Dynamic Imports for Heavy Components)
 const Onboarding = lazy(() => import('./components/Onboarding').then(m => ({ default: m.Onboarding })));
 const DashboardLayout = lazy(() => import('./components/Dashboard/DashboardLayout').then(m => ({ default: m.DashboardLayout })));
 const DashboardHome = lazy(() => import('./components/Dashboard/DashboardHome').then(m => ({ default: m.DashboardHome })));
@@ -17,72 +17,76 @@ const DashboardPayouts = lazy(() => import('./components/Dashboard/DashboardPayo
 const DashboardSettings = lazy(() => import('./components/Dashboard/DashboardSettings').then(m => ({ default: m.DashboardSettings })));
 const PublicProfile = lazy(() => import('./components/PublicProfile').then(m => ({ default: m.PublicProfile })));
 
-// Loading fallback component
+// Static JSX hoisted outside component (Rule 6.3: Hoist Static JSX Elements)
+const LoadingSpinner = (
+  <div className="w-16 h-16 border-4 border-glaze-pink border-t-transparent rounded-full animate-spin" />
+);
+
 const LoadingFallback: React.FC = () => (
   <div className="min-h-screen bg-cream flex items-center justify-center">
-    <div className="w-16 h-16 border-4 border-glaze-pink border-t-transparent rounded-full animate-spin" />
+    {LoadingSpinner}
   </div>
 );
 
 // App state types
 type AppView = 'landing' | 'onboarding' | 'dashboard' | 'publicProfile';
 
-// Demo mode - set to true to preview Dashboard without authentication
-const DEMO_MODE = new URLSearchParams(window.location.search).get('demo') === 'true';
+// Demo mode check - lazy initialization (Rule 5.10: Use Lazy State Initialization)
+const getDemoMode = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('demo') === 'true';
+};
+
+// Demo user profile - hoisted as constant (Rule 5.4: Extract Default Non-primitive Parameter Value)
+const DEMO_USER_PROFILE: UserProfile = {
+  privyId: 'demo-user',
+  username: 'demouser',
+  displayName: 'Demo User',
+  bio: 'This is a demo account for testing purposes.',
+  createdAt: Date.now(),
+};
 
 const App: React.FC = () => {
   const { ready, authenticated, user, login, logout } = usePrivy();
   
-  const [currentView, setCurrentView] = useState<AppView>(DEMO_MODE ? 'dashboard' : 'landing');
+  // Lazy state initialization (Rule 5.10)
+  const [demoMode] = useState(getDemoMode);
+  const [currentView, setCurrentView] = useState<AppView>(() => getDemoMode() ? 'dashboard' : 'landing');
   const [dashboardPage, setDashboardPage] = useState<DashboardPage>('home');
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(
-    DEMO_MODE ? {
-      privyId: 'demo-user',
-      username: 'demouser',
-      displayName: 'Demo User',
-      bio: 'This is a demo account for testing purposes.',
-      createdAt: Date.now(),
-    } : null
-  );
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(() => getDemoMode() ? DEMO_USER_PROFILE : null);
   const [isCheckingUser, setIsCheckingUser] = useState(false);
 
-  // Check user registration status when authenticated
+  // Check user registration status when authenticated (Rule 5.6: Narrow Effect Dependencies)
   useEffect(() => {
-    if (DEMO_MODE) return; // Skip auth check in demo mode
+    if (demoMode) return;
     
     if (ready && authenticated && user) {
       setIsCheckingUser(true);
-      
-      // Get Privy user ID
       const privyId = user.id;
       
-      // Check if user is already registered
       if (isUserRegistered(privyId)) {
-        // User exists, get their profile and go to dashboard
         const profile = getUserByPrivyId(privyId);
         setUserProfile(profile);
         setCurrentView('dashboard');
       } else {
-        // New user, go to onboarding
         setCurrentView('onboarding');
       }
       
       setIsCheckingUser(false);
     } else if (ready && !authenticated) {
-      // User logged out, reset to landing
       setCurrentView('landing');
       setUserProfile(null);
     }
-  }, [ready, authenticated, user]);
+  }, [ready, authenticated, user, demoMode]);
 
-  // Handle Privy login
+  // Handle Privy login (Rule 5.7: Put Interaction Logic in Event Handlers)
   const handleOpenLogin = useCallback(() => {
     login();
   }, [login]);
 
-  // Handle logout
+  // Handle logout - functional setState (Rule 5.9: Use Functional setState Updates)
   const handleLogout = useCallback(async () => {
-    if (DEMO_MODE) {
+    if (demoMode) {
       window.location.href = '/';
       return;
     }
@@ -91,7 +95,7 @@ const App: React.FC = () => {
     setUserProfile(null);
     setDashboardPage('home');
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [logout]);
+  }, [logout, demoMode]);
 
   // Handle onboarding completion
   const handleOnboardingFinish = useCallback((profile: UserProfile) => {
@@ -119,8 +123,8 @@ const App: React.FC = () => {
     setUserProfile(profile);
   }, []);
 
-  // Render dashboard content based on current page
-  const renderDashboardContent = () => {
+  // Memoize dashboard content to prevent unnecessary re-renders (Rule 5.5: Extract to Memoized Components)
+  const dashboardContent = useMemo(() => {
     switch (dashboardPage) {
       case 'supporters':
         return <DashboardSupporters userProfile={userProfile} />;
@@ -138,13 +142,17 @@ const App: React.FC = () => {
       default:
         return <DashboardHome userProfile={userProfile} />;
     }
-  };
+  }, [dashboardPage, userProfile, handleProfileUpdate, handleLogout]);
 
-  // Show loading while Privy is initializing or checking user (skip in demo mode)
-  if (!DEMO_MODE && (!ready || isCheckingUser)) {
+  // Derive loading state (Rule 5.1: Calculate Derived State During Rendering)
+  const isLoading = !demoMode && (!ready || isCheckingUser);
+
+  // Early return for loading state (Rule 7.8: Early Return from Functions)
+  if (isLoading) {
     return <LoadingFallback />;
   }
 
+  // Use explicit conditional rendering (Rule 6.8: Use Explicit Conditional Rendering)
   // 1. Public Profile View
   if (currentView === 'publicProfile') {
     return (
@@ -158,7 +166,7 @@ const App: React.FC = () => {
   }
 
   // 2. Dashboard View (demo mode or authenticated)
-  if (currentView === 'dashboard' && (DEMO_MODE || authenticated)) {
+  if (currentView === 'dashboard' && (demoMode || authenticated)) {
     return (
       <Suspense fallback={<LoadingFallback />}>
         <DashboardLayout 
@@ -168,7 +176,7 @@ const App: React.FC = () => {
           onLogout={handleLogout}
           userProfile={userProfile}
         >
-          {renderDashboardContent()}
+          {dashboardContent}
         </DashboardLayout>
       </Suspense>
     );

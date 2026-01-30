@@ -19,6 +19,20 @@ interface DashboardLayoutProps {
   userProfile?: UserProfile | null;
 }
 
+// Static JSX hoisted outside component (Rule 6.3: Hoist Static JSX Elements)
+const CheckIcon = (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+  </svg>
+);
+
+const EmptyNotificationsContent = (
+  <div className="p-8 text-center">
+    <BellIcon className="w-8 h-8 text-chocolate/20 mx-auto mb-2" />
+    <p className="text-sm text-chocolate/50">No notifications yet</p>
+  </div>
+);
+
 // Memoized NavItem component - simplified design
 const NavItem = memo<{
   icon: React.FC<{ className?: string }>;
@@ -41,8 +55,8 @@ const NavItem = memo<{
 ));
 NavItem.displayName = 'NavItem';
 
-// Navigation items configuration
-const NAV_ITEMS: Array<{
+// Navigation items configuration - hoisted as constant (Rule 5.4)
+const NAV_ITEMS: ReadonlyArray<{
   icon: React.FC<{ className?: string }>;
   label: string;
   key: DashboardPage | 'viewPage';
@@ -52,7 +66,7 @@ const NAV_ITEMS: Array<{
   { icon: HeartIcon, label: 'Supporters', key: 'supporters' },
   { icon: CreditCardIcon, label: 'Payouts', key: 'payouts' },
   { icon: SettingsIcon, label: 'Settings', key: 'settings' },
-];
+] as const;
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ 
   children, 
@@ -68,8 +82,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({
   const [showNotifications, setShowNotifications] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Close dropdowns when clicking outside
+  // Close dropdowns when clicking outside (Rule 4.2: Use Passive Event Listeners)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
@@ -84,6 +99,16 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Cleanup timeout on unmount (prevent memory leak)
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Functional setState updates (Rule 5.9)
   const handleCloseSidebar = useCallback(() => {
     setSidebarOpen(false);
   }, []);
@@ -92,31 +117,43 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({
     setSidebarOpen(true);
   }, []);
 
-  // Get display name from user profile
+  // Derive display values during render (Rule 5.1: Calculate Derived State During Rendering)
   const displayName = userProfile?.displayName || userProfile?.username || 'User';
   const username = userProfile?.username || 'yourname';
   const pageUrl = `donutsme.app/${username}`;
   
-  // Generate initials for avatar
-  const initials = displayName
-    .split(' ')
-    .map(n => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+  // Memoize initials calculation (Rule 5.3 exception: string operations can be memoized if complex)
+  const initials = useMemo(() => 
+    displayName
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2),
+    [displayName]
+  );
 
-  // Copy link handler
+  // Copy link handler with cleanup (Rule 5.7: Put Interaction Logic in Event Handlers)
   const handleCopyLink = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(`https://${pageUrl}`);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      
+      // Clear previous timeout if exists
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+      
+      copyTimeoutRef.current = setTimeout(() => {
+        setCopied(false);
+        copyTimeoutRef.current = null;
+      }, 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
     }
   }, [pageUrl]);
 
-  // Handle nav item click
+  // Handle nav item click with functional setState (Rule 5.9)
   const handleNavClick = useCallback((key: DashboardPage | 'viewPage') => {
     if (key === 'viewPage') {
       onViewPage?.();
@@ -126,13 +163,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({
     setSidebarOpen(false);
   }, [onViewPage, onPageChange]);
 
-  // Toggle user menu
+  // Toggle user menu with functional setState (Rule 5.9)
   const toggleUserMenu = useCallback(() => {
     setShowUserMenu(prev => !prev);
     setShowNotifications(false);
   }, []);
 
-  // Toggle notifications
+  // Toggle notifications with functional setState (Rule 5.9)
   const toggleNotifications = useCallback(() => {
     setShowNotifications(prev => !prev);
     setShowUserMenu(false);
@@ -150,7 +187,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({
     onLogout();
   }, [onLogout]);
 
-  // Memoize nav items
+  // Memoize nav items with stable callback references
   const navItems = useMemo(() => (
     NAV_ITEMS.map((item) => (
       <NavItem 
@@ -165,13 +202,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex font-dm-sans text-chocolate-dark">
-      {/* Mobile Sidebar Backdrop */}
-      {sidebarOpen && (
+      {/* Mobile Sidebar Backdrop - explicit conditional rendering (Rule 6.8) */}
+      {sidebarOpen ? (
         <div 
           className="fixed inset-0 bg-black/20 z-40 lg:hidden backdrop-blur-sm"
           onClick={handleCloseSidebar}
         />
-      )}
+      ) : null}
 
       {/* Sidebar - Clean & Minimal */}
       <aside className={`
@@ -231,13 +268,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({
                 }`}
                 title="Copy link"
               >
-                {copied ? (
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                ) : (
-                  <CopyIcon className="w-4 h-4" />
-                )}
+                {copied ? CheckIcon : <CopyIcon className="w-4 h-4" />}
               </button>
             </div>
           </div>
@@ -252,17 +283,14 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({
                 <BellIcon className="w-5 h-5" />
               </button>
               
-              {showNotifications && (
+              {showNotifications ? (
                 <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-lg border border-chocolate/10 py-2 z-50">
                   <div className="px-4 py-2 border-b border-chocolate/5">
                     <h3 className="font-semibold text-chocolate-dark">Notifications</h3>
                   </div>
-                  <div className="p-8 text-center">
-                    <BellIcon className="w-8 h-8 text-chocolate/20 mx-auto mb-2" />
-                    <p className="text-sm text-chocolate/50">No notifications yet</p>
-                  </div>
+                  {EmptyNotificationsContent}
                 </div>
-              )}
+              ) : null}
             </div>
 
             {/* User Menu Dropdown */}
@@ -280,7 +308,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({
                 <ChevronDownIcon className={`w-4 h-4 text-chocolate/30 hidden md:block transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
               </button>
               
-              {showUserMenu && (
+              {showUserMenu ? (
                 <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-chocolate/10 py-2 z-50">
                   <button
                     onClick={handleSettingsClick}
@@ -297,7 +325,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({
                     Log out
                   </button>
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
         </header>

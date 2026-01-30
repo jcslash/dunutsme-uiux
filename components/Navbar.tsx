@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback, memo } from 'react';
+import React, { useState, useEffect, useCallback, memo, startTransition } from 'react';
 import { DonutLogoIcon } from './visuals/Icons';
 
 interface NavbarProps {
   onOpenLogin: () => void;
 }
 
-// Memoized navigation link component
+// Memoized navigation link component (Rule 5.5: Extract to Memoized Components)
 const NavLink = memo<{ href: string; onClick: (e: React.MouseEvent<HTMLAnchorElement>) => void; children: React.ReactNode }>(
   ({ href, onClick, children }) => (
     <a 
@@ -19,7 +19,7 @@ const NavLink = memo<{ href: string; onClick: (e: React.MouseEvent<HTMLAnchorEle
 );
 NavLink.displayName = 'NavLink';
 
-// Mobile menu icon as static JSX (hoisted outside component)
+// Mobile menu icon as static JSX (Rule 6.3: Hoist Static JSX Elements)
 const MobileMenuIcon = (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="3" y1="12" x2="21" y2="12" />
@@ -28,22 +28,33 @@ const MobileMenuIcon = (
   </svg>
 );
 
+// Static logo wrapper (Rule 6.3)
+const LogoWrapper = (
+  <div className="w-9 h-9">
+    <DonutLogoIcon />
+  </div>
+);
+
 export const Navbar: React.FC<NavbarProps> = memo(({ onOpenLogin }) => {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
+      // Use startTransition for non-urgent scroll updates (Rule 5.11: Use Transitions for Non-Urgent Updates)
+      startTransition(() => {
+        setScrolled(window.scrollY > 20);
+      });
     };
     
-    // Use passive event listener for better scroll performance
+    // Use passive event listener for better scroll performance (Rule 4.2)
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Memoized scroll handler
+  // Memoized scroll handler (Rule 5.7: Put Interaction Logic in Event Handlers)
   const scrollToSection = useCallback((e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
     e.preventDefault();
+    // Read DOM on demand, not via subscription (Rule 5.2: Defer State Reads to Usage Point)
     const element = document.getElementById(id);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
@@ -69,9 +80,7 @@ export const Navbar: React.FC<NavbarProps> = memo(({ onOpenLogin }) => {
       aria-label="Main navigation"
     >
       <a href="#" className="flex items-center gap-2 font-fredoka font-bold text-2xl text-chocolate hover:scale-[1.02] transition-transform">
-        <div className="w-9 h-9">
-          <DonutLogoIcon />
-        </div>
+        {LogoWrapper}
         Donuts&nbsp;Me
       </a>
       

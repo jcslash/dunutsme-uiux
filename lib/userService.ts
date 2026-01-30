@@ -2,6 +2,10 @@
  * User Service - 用戶資料管理
  * 暫時使用 localStorage 儲存用戶資料
  * 未來可替換為後端 API
+ * 
+ * Optimized with Vercel React Best Practices:
+ * - Rule 4.4: Version and Minimize localStorage Data
+ * - Rule 7.5: Cache Storage API Calls
  */
 
 export interface UserProfile {
@@ -15,17 +19,36 @@ export interface UserProfile {
   updatedAt?: number;
 }
 
-const STORAGE_KEY = 'donutsme_users';
+// Versioned storage key (Rule 4.4: Version and Minimize localStorage Data)
+const STORAGE_VERSION = 'v1';
+const STORAGE_KEY = `donutsme_users:${STORAGE_VERSION}`;
+
+// In-memory cache for localStorage data (Rule 7.5: Cache Storage API Calls)
+let usersCache: Record<string, UserProfile> | null = null;
+let cacheTimestamp = 0;
+const CACHE_TTL = 5000; // 5 seconds cache TTL
 
 /**
- * 獲取所有用戶資料
+ * 獲取所有用戶資料（帶快取）
  */
 const getAllUsers = (): Record<string, UserProfile> => {
+  const now = Date.now();
+  
+  // Return cached data if still valid
+  if (usersCache !== null && (now - cacheTimestamp) < CACHE_TTL) {
+    return usersCache;
+  }
+  
   try {
     const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : {};
+    usersCache = data ? JSON.parse(data) : {};
+    cacheTimestamp = now;
+    return usersCache;
   } catch {
-    return {};
+    // Handle incognito mode, quota exceeded, or disabled localStorage
+    usersCache = {};
+    cacheTimestamp = now;
+    return usersCache;
   }
 };
 
@@ -33,7 +56,23 @@ const getAllUsers = (): Record<string, UserProfile> => {
  * 儲存所有用戶資料
  */
 const saveAllUsers = (users: Record<string, UserProfile>): void => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+    // Update cache
+    usersCache = users;
+    cacheTimestamp = Date.now();
+  } catch {
+    // Handle incognito mode, quota exceeded, or disabled localStorage
+    console.warn('Failed to save to localStorage');
+  }
+};
+
+/**
+ * 清除快取（用於測試或強制刷新）
+ */
+export const clearCache = (): void => {
+  usersCache = null;
+  cacheTimestamp = 0;
 };
 
 /**
@@ -54,17 +93,26 @@ export const getUserByPrivyId = (privyId: string): UserProfile | null => {
 
 /**
  * 檢查用戶名是否已被使用
+ * Optimized with early return (Rule 7.8)
  */
 export const isUsernameTaken = (username: string): boolean => {
   const users = getAllUsers();
   const normalizedUsername = username.toLowerCase();
-  return Object.values(users).some(
+  const userList = Object.values(users);
+  
+  // Early return for empty list (Rule 7.7: Early Length Check)
+  if (userList.length === 0) {
+    return false;
+  }
+  
+  return userList.some(
     user => user.username.toLowerCase() === normalizedUsername
   );
 };
 
 /**
  * 創建新用戶
+ * Only stores minimal required fields (Rule 4.4)
  */
 export const createUser = (
   privyId: string,
@@ -79,16 +127,27 @@ export const createUser = (
   const users = getAllUsers();
   
   const now = Date.now();
+  // Only store fields that are actually used (Rule 4.4)
   const newUser: UserProfile = {
     privyId,
     username: username.toLowerCase(),
-    displayName: additionalData?.displayName,
-    bio: additionalData?.bio,
-    email: additionalData?.email,
-    walletAddress: additionalData?.walletAddress,
     createdAt: now,
     updatedAt: now,
   };
+  
+  // Only add optional fields if they have values
+  if (additionalData?.displayName) {
+    newUser.displayName = additionalData.displayName;
+  }
+  if (additionalData?.bio) {
+    newUser.bio = additionalData.bio;
+  }
+  if (additionalData?.email) {
+    newUser.email = additionalData.email;
+  }
+  if (additionalData?.walletAddress) {
+    newUser.walletAddress = additionalData.walletAddress;
+  }
   
   users[privyId] = newUser;
   saveAllUsers(users);
@@ -106,6 +165,7 @@ export const updateUser = (
   const users = getAllUsers();
   const existingUser = users[privyId];
   
+  // Early return if user doesn't exist (Rule 7.8)
   if (!existingUser) {
     return null;
   }
@@ -143,6 +203,7 @@ export const updateUserProfile = (
 export const deleteUser = (privyId: string): boolean => {
   const users = getAllUsers();
   
+  // Early return if user doesn't exist (Rule 7.8)
   if (!users[privyId]) {
     return false;
   }
