@@ -1,150 +1,140 @@
-import { mysqlTable, varchar, text, boolean, timestamp, int, json, index, uniqueIndex } from 'drizzle-orm/mysql-core';
+import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
 import { relations } from 'drizzle-orm';
 
 // Users table
-export const users = mysqlTable('users', {
-  id: varchar('id', { length: 255 }).primaryKey(),
-  username: varchar('username', { length: 50 }).notNull().unique(),
-  displayName: varchar('display_name', { length: 100 }),
+export const users = sqliteTable('users', {
+  id: text('id').primaryKey(),
+  username: text('username').notNull().unique(),
+  displayName: text('display_name'),
   bio: text('bio'),
-  email: varchar('email', { length: 255 }),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+  email: text('email'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 }, (table) => ({
   usernameIdx: index('idx_users_username').on(table.username),
   emailIdx: index('idx_users_email').on(table.email),
 }));
 
 // Wallets table
-export const wallets = mysqlTable('wallets', {
-  id: varchar('id', { length: 255 }).primaryKey(),
-  userId: varchar('user_id', { length: 255 }).notNull(),
-  address: varchar('address', { length: 255 }).notNull(),
-  chainType: varchar('chain_type', { length: 50 }).notNull(),
-  walletType: varchar('wallet_type', { length: 50 }).notNull(),
-  isPrimary: boolean('is_primary').default(false),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+export const wallets = sqliteTable('wallets', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  address: text('address').notNull(),
+  chainType: text('chain_type').notNull(),
+  walletType: text('wallet_type').notNull(),
+  isPrimary: integer('is_primary', { mode: 'boolean' }).default(false),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 }, (table) => ({
   userIdIdx: index('idx_wallets_user_id').on(table.userId),
   addressIdx: index('idx_wallets_address').on(table.address),
 }));
 
 // Wallet balances table
-export const walletBalances = mysqlTable('wallet_balances', {
-  id: int('id').primaryKey().autoincrement(),
-  walletId: varchar('wallet_id', { length: 255 }).notNull(),
-  chain: varchar('chain', { length: 50 }).notNull(),
-  asset: varchar('asset', { length: 50 }).notNull(),
-  rawValue: varchar('raw_value', { length: 100 }).notNull(),
-  rawValueDecimals: int('raw_value_decimals').notNull(),
-  displayValueNative: varchar('display_value_native', { length: 50 }),
-  displayValueUsd: varchar('display_value_usd', { length: 50 }),
-  snapshotAt: timestamp('snapshot_at').defaultNow(),
+export const walletBalances = sqliteTable('wallet_balances', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  walletId: text('wallet_id').notNull(),
+  chain: text('chain').notNull(),
+  asset: text('asset').notNull(),
+  rawValue: text('raw_value').notNull(),
+  rawValueDecimals: integer('raw_value_decimals').notNull(),
+  displayValueNative: text('display_value_native'),
+  displayValueUsd: text('display_value_usd'),
+  snapshotAt: integer('snapshot_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 }, (table) => ({
   walletIdIdx: index('idx_wallet_balances_wallet_id').on(table.walletId),
-  snapshotAtIdx: index('idx_wallet_balances_snapshot_at').on(table.snapshotAt),
 }));
 
 // Transactions table
-export const transactions = mysqlTable('transactions', {
-  id: varchar('id', { length: 255 }).primaryKey(),
-  walletId: varchar('wallet_id', { length: 255 }).notNull(),
-  userId: varchar('user_id', { length: 255 }).notNull(),
-  type: varchar('type', { length: 50 }).notNull(),
-  status: varchar('status', { length: 50 }).notNull(),
-  chain: varchar('chain', { length: 50 }).notNull(),
-  asset: varchar('asset', { length: 50 }).notNull(),
-  amount: varchar('amount', { length: 100 }).notNull(),
-  amountDecimals: int('amount_decimals').notNull(),
-  displayAmountNative: varchar('display_amount_native', { length: 50 }),
-  displayAmountUsd: varchar('display_amount_usd', { length: 50 }),
-  fromAddress: varchar('from_address', { length: 255 }),
-  toAddress: varchar('to_address', { length: 255 }),
-  txHash: varchar('tx_hash', { length: 255 }),
-  metadata: json('metadata'),
-  createdAt: timestamp('created_at').defaultNow(),
-  completedAt: timestamp('completed_at'),
+export const transactions = sqliteTable('transactions', {
+  id: text('id').primaryKey(),
+  walletId: text('wallet_id').notNull(),
+  userId: text('user_id').notNull(),
+  type: text('type').notNull(),
+  status: text('status').notNull(),
+  chain: text('chain').notNull(),
+  asset: text('asset').notNull(),
+  amount: text('amount').notNull(),
+  amountDecimals: integer('amount_decimals').notNull(),
+  displayAmountNative: text('display_amount_native'),
+  displayAmountUsd: text('display_amount_usd'),
+  fromAddress: text('from_address'),
+  toAddress: text('to_address'),
+  txHash: text('tx_hash'),
+  metadata: text('metadata'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  completedAt: integer('completed_at', { mode: 'timestamp' }),
 }, (table) => ({
   walletIdIdx: index('idx_transactions_wallet_id').on(table.walletId),
   userIdIdx: index('idx_transactions_user_id').on(table.userId),
-  typeIdx: index('idx_transactions_type').on(table.type),
-  statusIdx: index('idx_transactions_status').on(table.status),
-  createdAtIdx: index('idx_transactions_created_at').on(table.createdAt),
 }));
 
 // Stripe accounts table
-export const stripeAccounts = mysqlTable('stripe_accounts', {
-  id: varchar('id', { length: 255 }).primaryKey(),
-  userId: varchar('user_id', { length: 255 }).notNull().unique(),
-  accountType: varchar('account_type', { length: 50 }).notNull(),
-  onboardingCompleted: boolean('onboarding_completed').default(false),
-  chargesEnabled: boolean('charges_enabled').default(false),
-  payoutsEnabled: boolean('payouts_enabled').default(false),
-  country: varchar('country', { length: 10 }),
-  currency: varchar('currency', { length: 10 }),
-  metadata: json('metadata'),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+export const stripeAccounts = sqliteTable('stripe_accounts', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().unique(),
+  accountType: text('account_type').notNull(),
+  onboardingCompleted: integer('onboarding_completed', { mode: 'boolean' }).default(false),
+  chargesEnabled: integer('charges_enabled', { mode: 'boolean' }).default(false),
+  payoutsEnabled: integer('payouts_enabled', { mode: 'boolean' }).default(false),
+  country: text('country'),
+  currency: text('currency'),
+  metadata: text('metadata'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 }, (table) => ({
-  userIdIdx: uniqueIndex('idx_stripe_accounts_user_id').on(table.userId),
+  userIdIdx: index('idx_stripe_accounts_user_id').on(table.userId),
 }));
 
 // Payouts table
-export const payouts = mysqlTable('payouts', {
-  id: varchar('id', { length: 255 }).primaryKey(),
-  userId: varchar('user_id', { length: 255 }).notNull(),
-  stripeAccountId: varchar('stripe_account_id', { length: 255 }).notNull(),
-  amount: varchar('amount', { length: 100 }).notNull(),
-  currency: varchar('currency', { length: 10 }).notNull(),
-  status: varchar('status', { length: 50 }).notNull(),
-  arrivalDate: timestamp('arrival_date'),
-  method: varchar('method', { length: 50 }),
-  destinationType: varchar('destination_type', { length: 50 }),
-  destinationId: varchar('destination_id', { length: 255 }),
-  failureCode: varchar('failure_code', { length: 50 }),
+export const payouts = sqliteTable('payouts', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  stripeAccountId: text('stripe_account_id').notNull(),
+  amount: text('amount').notNull(),
+  currency: text('currency').notNull(),
+  status: text('status').notNull(),
+  arrivalDate: integer('arrival_date', { mode: 'timestamp' }),
+  method: text('method'),
+  destinationType: text('destination_type'),
+  destinationId: text('destination_id'),
+  failureCode: text('failure_code'),
   failureMessage: text('failure_message'),
-  metadata: json('metadata'),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+  metadata: text('metadata'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 }, (table) => ({
   userIdIdx: index('idx_payouts_user_id').on(table.userId),
-  statusIdx: index('idx_payouts_status').on(table.status),
-  createdAtIdx: index('idx_payouts_created_at').on(table.createdAt),
 }));
 
 // BTC conversions table
-export const btcConversions = mysqlTable('btc_conversions', {
-  id: int('id').primaryKey().autoincrement(),
-  userId: varchar('user_id', { length: 255 }).notNull(),
-  walletId: varchar('wallet_id', { length: 255 }).notNull(),
-  transactionId: varchar('transaction_id', { length: 255 }),
-  fromAsset: varchar('from_asset', { length: 50 }).notNull(),
-  toAsset: varchar('to_asset', { length: 50 }).notNull(),
-  fromAmount: varchar('from_amount', { length: 100 }).notNull(),
-  toAmount: varchar('to_amount', { length: 100 }).notNull(),
-  exchangeRate: varchar('exchange_rate', { length: 50 }),
-  exchangeProvider: varchar('exchange_provider', { length: 50 }),
-  status: varchar('status', { length: 50 }).notNull(),
+export const btcConversions = sqliteTable('btc_conversions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id').notNull(),
+  walletId: text('wallet_id').notNull(),
+  transactionId: text('transaction_id'),
+  fromAsset: text('from_asset').notNull(),
+  toAsset: text('to_asset').notNull(),
+  fromAmount: text('from_amount').notNull(),
+  toAmount: text('to_amount').notNull(),
+  exchangeRate: text('exchange_rate'),
+  exchangeProvider: text('exchange_provider'),
+  status: text('status').notNull(),
   errorMessage: text('error_message'),
-  createdAt: timestamp('created_at').defaultNow(),
-  completedAt: timestamp('completed_at'),
-}, (table) => ({
-  userIdIdx: index('idx_btc_conversions_user_id').on(table.userId),
-  statusIdx: index('idx_btc_conversions_status').on(table.status),
-  createdAtIdx: index('idx_btc_conversions_created_at').on(table.createdAt),
-}));
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  completedAt: integer('completed_at', { mode: 'timestamp' }),
+});
 
 // User settings table
-export const userSettings = mysqlTable('user_settings', {
-  userId: varchar('user_id', { length: 255 }).primaryKey(),
-  autoConvertBtc: boolean('auto_convert_btc').default(false),
-  payoutSchedule: varchar('payout_schedule', { length: 50 }).default('manual'),
-  notificationEmail: boolean('notification_email').default(true),
-  notificationTransaction: boolean('notification_transaction').default(true),
-  notificationPayout: boolean('notification_payout').default(true),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+export const userSettings = sqliteTable('user_settings', {
+  userId: text('user_id').primaryKey(),
+  autoConvertBtc: integer('auto_convert_btc', { mode: 'boolean' }).default(false),
+  payoutSchedule: text('payout_schedule').default('manual'),
+  notificationEmail: integer('notification_email', { mode: 'boolean' }).default(true),
+  notificationTransaction: integer('notification_transaction', { mode: 'boolean' }).default(true),
+  notificationPayout: integer('notification_payout', { mode: 'boolean' }).default(true),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
 
 // Relations

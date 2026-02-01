@@ -1,14 +1,14 @@
+// 加載環境變量（必須在最前面）
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { testConnection, initDatabase } from './config/database.js';
 import usersRouter from './routes/users.js';
 import walletsRouter from './routes/wallets.js';
 import stripeRouter from './routes/stripe.js';
 import payoutsRouter from './routes/payouts.js';
-
-// 加載環境變量
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;

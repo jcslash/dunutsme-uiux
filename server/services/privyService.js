@@ -1,10 +1,14 @@
 import { PrivyClient } from '@privy-io/node';
+import dotenv from 'dotenv';
+
+// 確保環境變量已加載
+dotenv.config();
 
 // 初始化 Privy 客戶端
-const privyClient = new PrivyClient(
-  process.env.PRIVY_APP_ID,
-  process.env.PRIVY_APP_SECRET
-);
+const privyClient = new PrivyClient({
+  appId: process.env.PRIVY_APP_ID,
+  appSecret: process.env.PRIVY_APP_SECRET,
+});
 
 /**
  * 獲取用戶信息

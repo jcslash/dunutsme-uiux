@@ -1,16 +1,18 @@
 import React, { useState, useCallback, memo, useMemo, useRef, useEffect } from 'react';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { 
   ShareIcon, ChevronDownIcon, HeartIcon, CopyIcon
 } from '../visuals/Icons';
 import { BitcoinIcon } from '../visuals/CryptoLogos';
 import { ShareModal } from './ShareModal';
 import type { UserProfile } from '../../lib/userService';
+import * as apiClient from '../../lib/apiClient';
 
 interface DashboardHomeProps {
   userProfile?: UserProfile | null;
 }
 
-// Time range options - hoisted as constant (Rule 5.4)
+// Time range options
 const TIME_RANGES = [
   { label: 'Last 7 days', value: '7d' },
   { label: 'Last 30 days', value: '30d' },
@@ -18,7 +20,7 @@ const TIME_RANGES = [
   { label: 'All time', value: 'all' },
 ] as const;
 
-// Static JSX hoisted outside component (Rule 6.3: Hoist Static JSX Elements)
+// Static JSX
 const CheckIconSmall = (
   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -39,7 +41,7 @@ const EmptyProgressBar = (
   <div className="h-2 bg-cream rounded-full w-full overflow-hidden" />
 );
 
-// Memoized LegendItem component - cleaner design
+// Memoized components
 const LegendItem = memo<{ color: string; label: string; value: string }>(({ color, label, value }) => (
   <div className="flex items-center gap-3">
     <span className={`w-2.5 h-2.5 rounded-full ${color}`} />
@@ -51,7 +53,6 @@ const LegendItem = memo<{ color: string; label: string; value: string }>(({ colo
 ));
 LegendItem.displayName = 'LegendItem';
 
-// Memoized TimeRangeDropdown component (Rule 5.5: Extract to Memoized Components)
 const TimeRangeDropdown = memo<{
   isOpen: boolean;
   selectedValue: string;
@@ -93,14 +94,90 @@ const TimeRangeDropdown = memo<{
 TimeRangeDropdown.displayName = 'TimeRangeDropdown';
 
 export const DashboardHome: React.FC<DashboardHomeProps> = memo(({ userProfile }) => {
+  const { getAccessToken } = usePrivy();
+  const { wallets } = useWallets();
+  
   const [autoConvertBTC, setAutoConvertBTC] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showTimeRange, setShowTimeRange] = useState(false);
   const [selectedTimeRange, setSelectedTimeRange] = useState('30d');
+  const [totalBalance, setTotalBalance] = useState<string>('0.00');
+  const [walletsList, setWalletsList] = useState<any[]>([]);
+  const [stripeAccount, setStripeAccount] = useState<any>(null);
+  const [loadingBalance, setLoadingBalance] = useState(false);
+  const [loadingStripe, setLoadingStripe] = useState(false);
+  const [showWallets, setShowWallets] = useState(false);
+  
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Cleanup timeout on unmount (prevent memory leak)
+  // Load user settings
+  useEffect(() => {
+    if (!userProfile) return;
+    
+    const loadSettings = async () => {
+      try {
+        const token = await getAccessToken();
+        const { settings } = await apiClient.getUserSettings(token);
+        setAutoConvertBTC(settings.autoConvertBtc);
+      } catch (error) {
+        console.error('Failed to load settings:', error);
+      }
+    };
+    
+    loadSettings();
+  }, [userProfile, getAccessToken]);
+
+  // Load wallets and balance
+  useEffect(() => {
+    if (!userProfile) return;
+    
+    const loadWallets = async () => {
+      setLoadingBalance(true);
+      try {
+        const token = await getAccessToken();
+        const { wallets: apiWallets } = await apiClient.getWallets(token);
+        setWalletsList(apiWallets);
+        
+        // Try to get total balance
+        try {
+          const { totalUsd } = await apiClient.getTotalBalance(token);
+          setTotalBalance(totalUsd);
+        } catch (error) {
+          console.log('Balance API not available yet');
+        }
+      } catch (error) {
+        console.error('Failed to load wallets:', error);
+      } finally {
+        setLoadingBalance(false);
+      }
+    };
+    
+    loadWallets();
+  }, [userProfile, getAccessToken]);
+
+  // Load Stripe account
+  useEffect(() => {
+    if (!userProfile) return;
+    
+    const loadStripe = async () => {
+      setLoadingStripe(true);
+      try {
+        const token = await getAccessToken();
+        const { account } = await apiClient.getStripeAccount(token);
+        setStripeAccount(account);
+      } catch (error) {
+        // No Stripe account yet
+        console.log('No Stripe account');
+      } finally {
+        setLoadingStripe(false);
+      }
+    };
+    
+    loadStripe();
+  }, [userProfile, getAccessToken]);
+
+  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (copyTimeoutRef.current) {
@@ -109,17 +186,53 @@ export const DashboardHome: React.FC<DashboardHomeProps> = memo(({ userProfile }
     };
   }, []);
 
-  // Functional setState (Rule 5.9)
-  const handleToggleBTC = useCallback(() => {
-    setAutoConvertBTC(prev => !prev);
-  }, []);
+  // Toggle BTC auto-convert
+  const handleToggleBTC = useCallback(async () => {
+    const newValue = !autoConvertBTC;
+    setAutoConvertBTC(newValue);
+    
+    try {
+      const token = await getAccessToken();
+      await apiClient.updateUserSettings(token, { autoConvertBtc: newValue });
+    } catch (error) {
+      console.error('Failed to update settings:', error);
+      // Revert on error
+      setAutoConvertBTC(!newValue);
+    }
+  }, [autoConvertBTC, getAccessToken]);
 
-  // Derive display values during render (Rule 5.1)
+  // Stripe Connect handler
+  const handleConnectStripe = useCallback(async () => {
+    try {
+      const token = await getAccessToken();
+      const email = userProfile?.email || '';
+      const { url } = await apiClient.startStripeOnboarding(token, email);
+      window.location.href = url;
+    } catch (error) {
+      console.error('Failed to start Stripe onboarding:', error);
+      alert('Failed to connect Stripe. Please try again.');
+    }
+  }, [getAccessToken, userProfile]);
+
+  // Refresh balance
+  const handleRefreshBalance = useCallback(async () => {
+    setLoadingBalance(true);
+    try {
+      const token = await getAccessToken();
+      await apiClient.syncWallets(token);
+      const { totalUsd } = await apiClient.getTotalBalance(token);
+      setTotalBalance(totalUsd);
+    } catch (error) {
+      console.error('Failed to refresh balance:', error);
+    } finally {
+      setLoadingBalance(false);
+    }
+  }, [getAccessToken]);
+
   const displayName = userProfile?.displayName || userProfile?.username || 'User';
   const username = userProfile?.username || 'yourname';
   const pageUrl = `donutsme.app/${username}`;
   
-  // Memoize initials calculation
   const initials = useMemo(() => 
     displayName
       .split(' ')
@@ -130,7 +243,6 @@ export const DashboardHome: React.FC<DashboardHomeProps> = memo(({ userProfile }
     [displayName]
   );
 
-  // Copy link handler with cleanup (Rule 5.7)
   const handleCopyLink = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(`https://${pageUrl}`);
@@ -149,7 +261,6 @@ export const DashboardHome: React.FC<DashboardHomeProps> = memo(({ userProfile }
     }
   }, [pageUrl]);
 
-  // Share modal handlers
   const handleOpenShareModal = useCallback(() => {
     setShowShareModal(true);
   }, []);
@@ -158,7 +269,6 @@ export const DashboardHome: React.FC<DashboardHomeProps> = memo(({ userProfile }
     setShowShareModal(false);
   }, []);
 
-  // Time range handlers with functional setState (Rule 5.9)
   const handleTimeRangeClick = useCallback(() => {
     setShowTimeRange(prev => !prev);
   }, []);
@@ -168,19 +278,21 @@ export const DashboardHome: React.FC<DashboardHomeProps> = memo(({ userProfile }
     setShowTimeRange(false);
   }, []);
 
+  const toggleWallets = useCallback(() => {
+    setShowWallets(prev => !prev);
+  }, []);
+
   return (
     <div className="space-y-6">
-      {/* Share Modal */}
       <ShareModal 
         isOpen={showShareModal} 
         onClose={handleCloseShareModal} 
         username={username}
       />
 
-      {/* User Card - Simplified */}
+      {/* User Card */}
       <div className="bg-white rounded-2xl p-6 border border-chocolate/5">
         <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-5">
-          {/* Profile Info */}
           <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-glaze-pink to-glaze-orange flex items-center justify-center text-white text-xl font-bold">
               {initials}
@@ -206,7 +318,6 @@ export const DashboardHome: React.FC<DashboardHomeProps> = memo(({ userProfile }
             </div>
           </div>
 
-          {/* Share Button */}
           <button 
             onClick={handleOpenShareModal}
             className="bg-chocolate-dark text-white px-5 py-2.5 rounded-full font-medium text-sm flex items-center gap-2 hover:bg-chocolate transition-colors"
@@ -217,9 +328,59 @@ export const DashboardHome: React.FC<DashboardHomeProps> = memo(({ userProfile }
         </div>
       </div>
 
-      {/* Earnings Card - Cleaner */}
+      {/* Wallets Card */}
       <div className="bg-white rounded-2xl p-6 border border-chocolate/5">
-        {/* Header */}
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="font-fredoka text-lg font-bold text-chocolate-dark">Your Wallets</h2>
+          <button
+            onClick={handleRefreshBalance}
+            disabled={loadingBalance}
+            className="text-xs font-medium text-chocolate/50 hover:text-chocolate transition-colors disabled:opacity-50"
+          >
+            {loadingBalance ? 'Loading...' : 'Refresh'}
+          </button>
+        </div>
+
+        <div className="mb-4">
+          <span className="font-fredoka text-3xl font-bold text-chocolate-dark">${totalBalance}</span>
+          <span className="text-chocolate/40 ml-2 text-sm">USD</span>
+        </div>
+
+        {walletsList.length > 0 ? (
+          <div className="space-y-3">
+            <button
+              onClick={toggleWallets}
+              className="w-full flex items-center justify-between text-sm text-chocolate/70 hover:text-chocolate transition-colors"
+            >
+              <span>{walletsList.length} wallet{walletsList.length > 1 ? 's' : ''} connected</span>
+              <ChevronDownIcon className={`w-4 h-4 transition-transform ${showWallets ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showWallets && (
+              <div className="space-y-2 pt-2 border-t border-chocolate/5">
+                {walletsList.map((wallet) => (
+                  <div key={wallet.id} className="flex items-center justify-between p-3 bg-cream/30 rounded-lg">
+                    <div>
+                      <div className="text-xs font-medium text-chocolate/50 uppercase">{wallet.chainType}</div>
+                      <div className="text-sm font-mono text-chocolate-dark mt-1">
+                        {wallet.address.slice(0, 6)}...{wallet.address.slice(-4)}
+                      </div>
+                    </div>
+                    {wallet.isPrimary && (
+                      <span className="text-[9px] font-bold px-2 py-1 rounded bg-green-badge/10 text-green-badge uppercase">Primary</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-chocolate/50">No wallets found. Please refresh or contact support.</p>
+        )}
+      </div>
+
+      {/* Earnings Card */}
+      <div className="bg-white rounded-2xl p-6 border border-chocolate/5">
         <div className="flex justify-between items-center mb-6">
           <h2 className="font-fredoka text-lg font-bold text-chocolate-dark">Earnings</h2>
           <TimeRangeDropdown
@@ -230,22 +391,19 @@ export const DashboardHome: React.FC<DashboardHomeProps> = memo(({ userProfile }
           />
         </div>
         
-        {/* Amount */}
         <div className="mb-6">
           <span className="font-fredoka text-4xl font-bold text-chocolate-dark">$0</span>
           <span className="text-chocolate/40 ml-2 text-sm">.00</span>
         </div>
 
-        {/* Legend */}
         <div className="flex flex-wrap gap-6 mb-6">
           <LegendItem color="bg-glaze-orange" label="Supporters" value="$0" />
           <LegendItem color="bg-glaze-pink" label="Membership" value="$0" />
         </div>
 
-        {/* Progress Bar */}
         {EmptyProgressBar}
 
-        {/* BTC Auto-Convert - Preserved */}
+        {/* BTC Auto-Convert */}
         <div className="mt-6 pt-6 border-t border-chocolate/5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -279,7 +437,54 @@ export const DashboardHome: React.FC<DashboardHomeProps> = memo(({ userProfile }
         </div>
       </div>
 
-      {/* Empty State - Simplified */}
+      {/* Stripe Connect Card */}
+      <div className="bg-white rounded-2xl p-6 border border-chocolate/5">
+        <h2 className="font-fredoka text-lg font-bold text-chocolate-dark mb-4">Payouts</h2>
+        
+        {loadingStripe ? (
+          <p className="text-sm text-chocolate/50">Loading...</p>
+        ) : stripeAccount ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className={`w-3 h-3 rounded-full ${stripeAccount.payoutsEnabled ? 'bg-green-badge' : 'bg-yellow-500'}`} />
+              <div>
+                <div className="text-sm font-medium text-chocolate-dark">
+                  {stripeAccount.payoutsEnabled ? 'Payouts Enabled' : 'Setup Incomplete'}
+                </div>
+                <div className="text-xs text-chocolate/50">
+                  {stripeAccount.onboardingCompleted ? 'Your account is ready' : 'Please complete onboarding'}
+                </div>
+              </div>
+            </div>
+            
+            {!stripeAccount.onboardingCompleted && (
+              <button
+                onClick={handleConnectStripe}
+                className="w-full bg-chocolate-dark text-white px-5 py-2.5 rounded-full font-medium text-sm hover:bg-chocolate transition-colors"
+              >
+                Complete Setup
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-sm text-chocolate/50">
+              Connect your Stripe account to receive payouts to your bank account.
+            </p>
+            <button
+              onClick={handleConnectStripe}
+              className="w-full bg-chocolate-dark text-white px-5 py-2.5 rounded-full font-medium text-sm hover:bg-chocolate transition-colors flex items-center justify-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305z"/>
+              </svg>
+              Connect Stripe
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Empty State */}
       <div className="bg-white rounded-2xl p-10 border border-chocolate/5 text-center">
         <div className="w-14 h-14 bg-glaze-pink/10 rounded-full flex items-center justify-center mx-auto mb-4">
           <HeartIcon className="w-7 h-7 text-glaze-pink" />
