@@ -12,15 +12,6 @@ interface ApiResponse<T> {
 }
 
 /**
- * 獲取 Privy 訪問令牌
- */
-function getAccessToken(): string | null {
-  // 從 Privy 獲取訪問令牌
-  // 這需要在組件中使用 usePrivy hook 獲取
-  return null;
-}
-
-/**
  * 通用 API 請求函數
  */
 async function apiRequest<T>(
@@ -88,9 +79,6 @@ export interface UserSettings {
   notificationPayout: boolean;
 }
 
-/**
- * 註冊新用戶
- */
 export async function registerUser(
   accessToken: string,
   data: {
@@ -106,18 +94,12 @@ export async function registerUser(
   }, accessToken);
 }
 
-/**
- * 獲取當前用戶資料
- */
 export async function getCurrentUser(accessToken: string): Promise<{ user: UserProfile }> {
   return apiRequest('/users/me', {
     method: 'GET',
   }, accessToken);
 }
 
-/**
- * 更新用戶資料
- */
 export async function updateUser(
   accessToken: string,
   data: {
@@ -132,36 +114,24 @@ export async function updateUser(
   }, accessToken);
 }
 
-/**
- * 檢查用戶名是否可用
- */
 export async function checkUsername(username: string): Promise<{ available: boolean }> {
   return apiRequest(`/users/check-username/${username}`, {
     method: 'GET',
   });
 }
 
-/**
- * 同步 Privy 錢包
- */
 export async function syncWallets(accessToken: string): Promise<{ wallets: Wallet[] }> {
   return apiRequest('/users/sync-wallets', {
     method: 'POST',
   }, accessToken);
 }
 
-/**
- * 獲取用戶設置
- */
 export async function getUserSettings(accessToken: string): Promise<{ settings: UserSettings }> {
   return apiRequest('/users/settings', {
     method: 'GET',
   }, accessToken);
 }
 
-/**
- * 更新用戶設置
- */
 export async function updateUserSettings(
   accessToken: string,
   settings: Partial<UserSettings>
@@ -189,36 +159,24 @@ export interface WalletBalance {
   }>;
 }
 
-/**
- * 獲取所有錢包
- */
 export async function getWallets(accessToken: string): Promise<{ wallets: Wallet[] }> {
   return apiRequest('/wallets', {
     method: 'GET',
   }, accessToken);
 }
 
-/**
- * 獲取主錢包
- */
 export async function getPrimaryWallet(accessToken: string): Promise<{ wallet: Wallet }> {
   return apiRequest('/wallets/primary', {
     method: 'GET',
   }, accessToken);
 }
 
-/**
- * 獲取錢包詳情
- */
 export async function getWallet(accessToken: string, walletId: string): Promise<{ wallet: Wallet }> {
   return apiRequest(`/wallets/${walletId}`, {
     method: 'GET',
   }, accessToken);
 }
 
-/**
- * 獲取錢包餘額
- */
 export async function getWalletBalance(
   accessToken: string,
   walletId: string
@@ -228,9 +186,6 @@ export async function getWalletBalance(
   }, accessToken);
 }
 
-/**
- * 獲取錢包餘額歷史
- */
 export async function getWalletBalanceHistory(
   accessToken: string,
   walletId: string,
@@ -242,13 +197,112 @@ export async function getWalletBalanceHistory(
   }, accessToken);
 }
 
-/**
- * 獲取總餘額
- */
 export async function getTotalBalance(
   accessToken: string
 ): Promise<{ totalUsd: string; wallets: any[] }> {
   return apiRequest('/wallets/total-balance', {
+    method: 'GET',
+  }, accessToken);
+}
+
+// ============ Stripe APIs ============
+
+export interface StripeAccount {
+  id: string;
+  onboardingCompleted: boolean;
+  chargesEnabled: boolean;
+  payoutsEnabled: boolean;
+  country: string;
+  currency: string;
+}
+
+export interface StripeBalance {
+  available: Array<{
+    amount: string;
+    currency: string;
+  }>;
+  pending: Array<{
+    amount: string;
+    currency: string;
+  }>;
+}
+
+export async function startStripeOnboarding(
+  accessToken: string,
+  email: string,
+  country?: string
+): Promise<{ url: string; accountId: string }> {
+  return apiRequest('/stripe/onboard', {
+    method: 'POST',
+    body: JSON.stringify({ email, country }),
+  }, accessToken);
+}
+
+export async function getStripeAccount(accessToken: string): Promise<{ account: StripeAccount }> {
+  return apiRequest('/stripe/account', {
+    method: 'GET',
+  }, accessToken);
+}
+
+export async function refreshStripeOnboardingUrl(accessToken: string): Promise<{ url: string }> {
+  return apiRequest('/stripe/refresh-url', {
+    method: 'POST',
+  }, accessToken);
+}
+
+export async function getStripeDashboardUrl(accessToken: string): Promise<{ url: string }> {
+  return apiRequest('/stripe/dashboard-url', {
+    method: 'GET',
+  }, accessToken);
+}
+
+export async function getStripeBalance(accessToken: string): Promise<{ balance: StripeBalance }> {
+  return apiRequest('/stripe/balance', {
+    method: 'GET',
+  }, accessToken);
+}
+
+// ============ Payout APIs ============
+
+export interface Payout {
+  id: string;
+  amount: string;
+  currency: string;
+  status: string;
+  arrivalDate?: string;
+  method?: string;
+  failureCode?: string;
+  failureMessage?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export async function createPayout(
+  accessToken: string,
+  amount: string,
+  currency?: string
+): Promise<{ payout: Payout }> {
+  return apiRequest('/payouts/create', {
+    method: 'POST',
+    body: JSON.stringify({ amount, currency }),
+  }, accessToken);
+}
+
+export async function getPayouts(
+  accessToken: string,
+  limit?: number
+): Promise<{ payouts: Payout[] }> {
+  const query = limit ? `?limit=${limit}` : '';
+  return apiRequest(`/payouts${query}`, {
+    method: 'GET',
+  }, accessToken);
+}
+
+export async function getPayout(
+  accessToken: string,
+  payoutId: string
+): Promise<{ payout: Payout }> {
+  return apiRequest(`/payouts/${payoutId}`, {
     method: 'GET',
   }, accessToken);
 }
@@ -267,4 +321,12 @@ export default {
   getWalletBalance,
   getWalletBalanceHistory,
   getTotalBalance,
+  startStripeOnboarding,
+  getStripeAccount,
+  refreshStripeOnboardingUrl,
+  getStripeDashboardUrl,
+  getStripeBalance,
+  createPayout,
+  getPayouts,
+  getPayout,
 };
