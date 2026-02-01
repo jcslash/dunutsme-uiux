@@ -9,6 +9,7 @@ import usersRouter from './routes/users.js';
 import walletsRouter from './routes/wallets.js';
 import stripeRouter from './routes/stripe.js';
 import payoutsRouter from './routes/payouts.js';
+import testRouter from './routes/test.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -57,6 +58,7 @@ app.use('/api/users', usersRouter);
 app.use('/api/wallets', walletsRouter);
 app.use('/api/stripe', stripeRouter);
 app.use('/api/payouts', payoutsRouter);
+app.use('/api/test', testRouter);
 
 // 404 處理
 app.use((req, res) => {
