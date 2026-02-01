@@ -22,8 +22,14 @@ export const Onboarding: React.FC<OnboardingProps> = memo(({ onFinish, onLogout 
     setError(null);
     
     try {
+      console.log('=== Starting registration ===');
+      console.log('Username:', username);
+      
       // Check if username is already taken
+      console.log('Checking username availability...');
       const { available } = await apiClient.checkUsername(username);
+      console.log('Username available:', available);
+      
       if (!available) {
         setError('This username is already taken. Please choose another one.');
         setIsSubmitting(false);
@@ -31,20 +37,29 @@ export const Onboarding: React.FC<OnboardingProps> = memo(({ onFinish, onLogout 
       }
       
       // Get access token and email from Privy
+      console.log('Getting access token...');
       const token = await getAccessToken();
+      console.log('Token received:', token ? `${token.substring(0, 20)}...` : 'null');
+      
       const email = privyUser?.email?.address || '';
+      console.log('Email:', email);
       
       // Register user via API
+      console.log('Calling registerUser API...');
       const { user } = await apiClient.registerUser(token, {
         username,
         displayName: username,
         email: email || undefined,
       });
+      console.log('User registered successfully:', user);
       
       // Notify parent component
       onFinish(user);
     } catch (err: any) {
-      console.error('Error creating user:', err);
+      console.error('=== Registration error ===');
+      console.error('Error:', err);
+      console.error('Message:', err.message);
+      console.error('Response:', err.response);
       setError(err.message || 'Something went wrong. Please try again.');
       setIsSubmitting(false);
     }

@@ -117,10 +117,17 @@ export async function getWalletBalanceByAddress(address, chainType = 'ethereum')
  */
 export async function verifyPrivyToken(accessToken) {
   try {
+    console.log('Verifying Privy token...');
+    console.log('Token length:', accessToken?.length);
+    console.log('App ID:', process.env.PRIVY_APP_ID);
+    console.log('App Secret exists:', !!process.env.PRIVY_APP_SECRET);
+    
     const claims = await privyClient.verifyAuthToken(accessToken);
+    console.log('Token verified successfully:', claims.userId);
     return claims;
   } catch (error) {
-    console.error('Error verifying Privy token:', error);
+    console.error('Error verifying Privy token:', error.message);
+    console.error('Error details:', error);
     throw error;
   }
 }
