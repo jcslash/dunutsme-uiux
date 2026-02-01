@@ -1,181 +1,222 @@
 import React, { useState, useCallback, memo } from 'react';
+import { usePrivy } from '@privy-io/react-auth';
 import { DonutLogoIcon } from './visuals/Icons';
-import { createUser, isUsernameTaken, type UserProfile } from '../lib/userService';
-import type { User as PrivyUser } from '@privy-io/react-auth';
+import * as apiClient from '../lib/apiClient';
+import type { UserProfile } from '../lib/apiClient';
 
 interface OnboardingProps {
-  privyUser: PrivyUser;
   onFinish: (profile: UserProfile) => void;
   onLogout: () => void;
 }
 
-export const Onboarding: React.FC<OnboardingProps> = memo(({ privyUser, onFinish, onLogout }) => {
+export const Onboarding: React.FC<OnboardingProps> = memo(({ onFinish, onLogout }) => {
+  const { user: privyUser, getAccessToken } = usePrivy();
   const [username, setUsername] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [bio, setBio] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
 
-  const handleSubmit = useCallback(async () => {
-    if (!username || isSubmitting) return;
+  // Check username availability
+  const checkUsername = useCallback(async (value: string) => {
+    if (!value || value.length < 3) {
+      setUsernameAvailable(null);
+      return;
+    }
+    
+    setIsCheckingUsername(true);
+    try {
+      const { available } = await apiClient.checkUsername(value);
+      setUsernameAvailable(available);
+    } catch (err) {
+      console.error('Error checking username:', err);
+      setUsernameAvailable(null);
+    } finally {
+      setIsCheckingUsername(false);
+    }
+  }, []);
+
+  // Handle username change with debounce
+  const handleUsernameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    setUsername(value);
+    
+    // Debounce username check
+    const timeoutId = setTimeout(() => {
+      checkUsername(value);
+    }, 500);
+    
+    return () => clearTimeout(timeoutId);
+  }, [checkUsername]);
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!username || isSubmitting || usernameAvailable === false) return;
     
     setIsSubmitting(true);
     setError(null);
     
     try {
-      // Check if username is already taken
-      if (isUsernameTaken(username)) {
-        setError('This username is already taken. Please choose another one.');
-        setIsSubmitting(false);
-        return;
-      }
+      // Get access token
+      const token = await getAccessToken();
       
-      // Get user info from Privy
-      const email = privyUser.email?.address;
-      const walletAddress = privyUser.wallet?.address;
+      // Get email from Privy user
+      const email = privyUser?.email?.address || '';
       
-      // Create user profile
-      const profile = createUser(privyUser.id, username, {
-        email,
-        walletAddress,
-        displayName: username,
+      // Register user
+      const { user } = await apiClient.registerUser(token, {
+        username,
+        displayName: displayName || username,
+        bio: bio || undefined,
+        email: email || undefined,
       });
       
       // Notify parent component
-      onFinish(profile);
-    } catch (err) {
+      onFinish(user);
+    } catch (err: any) {
       console.error('Error creating user:', err);
-      setError('Something went wrong. Please try again.');
+      setError(err.message || 'Something went wrong. Please try again.');
       setIsSubmitting(false);
     }
-  }, [username, isSubmitting, privyUser, onFinish]);
-
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    // Only allow alphanumeric, underscore, and hyphen
-    const value = e.target.value.replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase();
-    setUsername(value);
-    setError(null); // Clear error when user types
-  }, []);
-
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleSubmit();
-    }
-  }, [handleSubmit]);
-
-  const isUsernameValid = username.length >= 3 && username.length <= 30;
-  const usernameHint = username.length > 0 && username.length < 3 
-    ? 'Username must be at least 3 characters'
-    : username.length > 30 
-    ? 'Username must be 30 characters or less'
-    : null;
+  }, [username, displayName, bio, isSubmitting, usernameAvailable, privyUser, getAccessToken, onFinish]);
 
   return (
-    <div className="min-h-screen bg-cream flex flex-col font-dm-sans">
-      {/* Header */}
-      <header className="px-8 py-6 flex justify-between items-center">
-        <a href="#" className="w-10 h-10 hover:scale-105 transition-transform">
-          <DonutLogoIcon />
-        </a>
-        <button 
-          onClick={onLogout}
-          className="text-sm font-medium text-chocolate/60 hover:text-chocolate transition-colors"
-        >
-          Log out
-        </button>
-      </header>
-
-      {/* Main Content */}
-      <main className="flex-grow flex flex-col items-center pt-16 px-4 sm:px-6">
-        <div className="w-full max-w-[520px]">
-          
-          {/* Welcome Message */}
-          {privyUser.email?.address && (
-            <div className="mb-6 p-4 bg-white rounded-xl border border-chocolate/5 shadow-sm">
-              <p className="text-sm text-chocolate/60">
-                Welcome! You're signing up with{' '}
-                <span className="font-semibold text-chocolate-dark">
-                  {privyUser.email.address}
-                </span>
-              </p>
-            </div>
-          )}
-          
-          {/* Headings */}
-          <h1 className="font-fredoka text-3xl sm:text-4xl font-bold text-chocolate-dark mb-3">
+    <div className="min-h-screen bg-cream flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl shadow-sm mb-4">
+            <DonutLogoIcon className="w-10 h-10" />
+          </div>
+          <h1 className="font-fredoka text-3xl font-bold text-chocolate-dark mb-2">
             Create your page
           </h1>
-          <p className="text-lg text-chocolate/60 mb-8 font-medium">
-            Choose a unique username for your Donuts Me page.
-          </p>
-
-          {/* Input Field Container */}
-          <div className="relative group mb-2">
-            <div className={`w-full bg-white rounded-2xl border-2 px-5 py-4 flex items-center shadow-sm transition-all focus-within:shadow-glow-pink focus-within:ring-4 focus-within:ring-glaze-pink/10 ${
-              error 
-                ? 'border-red-400 focus-within:border-red-400' 
-                : 'border-chocolate/5 focus-within:border-glaze-pink'
-            }`}>
-              <span className="font-fredoka text-lg sm:text-xl text-chocolate/40 select-none mr-1">
-                donutsme.app/
-              </span>
-              <input 
-                type="text" 
-                value={username}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                placeholder="yourname"
-                className="flex-grow font-fredoka text-lg sm:text-xl text-chocolate-dark placeholder:text-chocolate/20 bg-transparent outline-none min-w-0"
-                autoFocus
-                disabled={isSubmitting}
-                maxLength={30}
-              />
-            </div>
-            {/* Validation/Status Hint */}
-            {isUsernameValid && !error && (
-              <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                <div className="w-6 h-6 rounded-full bg-green-badge flex items-center justify-center text-white text-xs">
-                  ✓
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Error or Hint Message */}
-          {(error || usernameHint) && (
-            <p className={`text-sm mb-6 ${error ? 'text-red-500' : 'text-chocolate/50'}`}>
-              {error || usernameHint}
-            </p>
-          )}
-          {!error && !usernameHint && <div className="mb-6" />}
-
-          {/* Submit Button */}
-          <button 
-            className="w-full py-4 rounded-full bg-gradient-to-br from-glaze-pink to-glaze-orange text-white font-fredoka font-bold text-lg shadow-glow-pink hover:-translate-y-1 hover:shadow-lg transition-all active:translate-y-0 disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:shadow-none flex items-center justify-center gap-2"
-            disabled={!isUsernameValid || isSubmitting}
-            onClick={handleSubmit}
-          >
-            {isSubmitting ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Creating...
-              </>
-            ) : (
-              'Create my page'
-            )}
-          </button>
-
-          {/* Footer Terms */}
-          <p className="mt-8 text-center text-sm text-chocolate/40">
-            By continuing, you agree to the{' '}
-            <a href="#" className="underline decoration-chocolate/20 hover:text-chocolate transition-colors">
-              terms of service
-            </a>{' '}
-            and{' '}
-            <a href="#" className="underline decoration-chocolate/20 hover:text-chocolate transition-colors">
-              privacy policy
-            </a>.
+          <p className="text-chocolate/60">
+            Choose a unique username for your Donuts page
           </p>
         </div>
-      </main>
+
+        {/* Form */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-chocolate/5">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Username */}
+            <div>
+              <label htmlFor="username" className="block text-sm font-medium text-chocolate-dark mb-2">
+                Username *
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-chocolate/40">
+                  donutsme.app/
+                </span>
+                <input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={handleUsernameChange}
+                  placeholder="yourname"
+                  className={`w-full pl-[140px] pr-10 py-3 border rounded-xl focus:outline-none focus:ring-2 transition-colors ${
+                    usernameAvailable === true
+                      ? 'border-green-badge focus:ring-green-badge/20'
+                      : usernameAvailable === false
+                      ? 'border-red-500 focus:ring-red-500/20'
+                      : 'border-chocolate/10 focus:ring-glaze-pink/20'
+                  }`}
+                  required
+                  minLength={3}
+                  maxLength={30}
+                  pattern="[a-z0-9_-]+"
+                  disabled={isSubmitting}
+                />
+                {isCheckingUsername && (
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                    <div className="w-4 h-4 border-2 border-chocolate/20 border-t-chocolate rounded-full animate-spin" />
+                  </div>
+                )}
+                {!isCheckingUsername && usernameAvailable === true && (
+                  <svg className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-green-badge" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+                {!isCheckingUsername && usernameAvailable === false && (
+                  <svg className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+              </div>
+              {usernameAvailable === false && (
+                <p className="text-xs text-red-500 mt-1">This username is already taken</p>
+              )}
+              <p className="text-xs text-chocolate/50 mt-1">
+                3-30 characters, letters, numbers, underscores and hyphens only
+              </p>
+            </div>
+
+            {/* Display Name (Optional) */}
+            <div>
+              <label htmlFor="displayName" className="block text-sm font-medium text-chocolate-dark mb-2">
+                Display Name (Optional)
+              </label>
+              <input
+                id="displayName"
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Your Name"
+                className="w-full px-4 py-3 border border-chocolate/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-glaze-pink/20 transition-colors"
+                maxLength={100}
+                disabled={isSubmitting}
+              />
+            </div>
+
+            {/* Bio (Optional) */}
+            <div>
+              <label htmlFor="bio" className="block text-sm font-medium text-chocolate-dark mb-2">
+                Bio (Optional)
+              </label>
+              <textarea
+                id="bio"
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                placeholder="Tell your supporters about yourself..."
+                className="w-full px-4 py-3 border border-chocolate/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-glaze-pink/20 transition-colors resize-none"
+                rows={3}
+                maxLength={500}
+                disabled={isSubmitting}
+              />
+              <p className="text-xs text-chocolate/50 mt-1">
+                {bio.length}/500 characters
+              </p>
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm">
+                {error}
+              </div>
+            )}
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={isSubmitting || !username || usernameAvailable === false || isCheckingUsername}
+              className="w-full bg-chocolate-dark text-white py-3 rounded-full font-medium hover:bg-chocolate transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? 'Creating your page...' : 'Create my page'}
+            </button>
+          </form>
+
+          {/* Logout */}
+          <button
+            onClick={onLogout}
+            className="w-full mt-4 text-sm text-chocolate/50 hover:text-chocolate transition-colors"
+          >
+            Log out
+          </button>
+        </div>
+      </div>
     </div>
   );
 });

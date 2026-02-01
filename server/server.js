@@ -27,6 +27,23 @@ app.use((req, res, next) => {
   next();
 });
 
+// 根路徑端點
+app.get('/', (req, res) => {
+  res.json({
+    name: 'Donuts Me API',
+    version: '1.0.0',
+    status: 'running',
+    endpoints: {
+      health: '/health',
+      api: '/api',
+      users: '/api/users',
+      wallets: '/api/wallets',
+      stripe: '/api/stripe',
+      payouts: '/api/payouts',
+    },
+  });
+});
+
 // 健康檢查端點
 app.get('/health', (req, res) => {
   res.json({

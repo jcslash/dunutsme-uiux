@@ -22,6 +22,10 @@ router.post(
     body('email').optional().isEmail(),
   ],
   async (req, res) => {
+    console.log('=== Register API called ===');
+    console.log('Request body:', req.body);
+    console.log('Privy user:', req.user);
+    
     try {
       // 驗證輸入
       const errors = validationResult(req);
@@ -42,11 +46,13 @@ router.post(
       }
       
       // 創建用戶
+      console.log('Calling userService.createUser with:', { privyId, username, displayName, bio, email });
       const user = await userService.createUser(privyId, username, {
         displayName,
         bio,
         email,
       });
+      console.log('User created:', user);
       
       // 獲取完整資料
       const profile = await userService.getCompleteUserProfile(privyId);
@@ -56,7 +62,9 @@ router.post(
         user: profile,
       });
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error('=== Registration error ===');
+      console.error('Error:', error);
+      console.error('Stack:', error.stack);
       
       if (error.message === 'Username already taken') {
         return res.status(409).json({

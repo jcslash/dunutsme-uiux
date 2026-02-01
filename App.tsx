@@ -5,7 +5,8 @@ import { Hero } from './components/Hero';
 import { HowItWorks } from './components/HowItWorks';
 import { Features } from './components/Features';
 import { Footer } from './components/Footer';
-import { isUserRegistered, getUserByPrivyId, type UserProfile } from './lib/userService';
+import * as apiClient from './lib/apiClient';
+import type { UserProfile } from './lib/apiClient';
 import type { DashboardPage } from './components/Dashboard/DashboardLayout';
 
 // Lazy load components that are not immediately visible (Rule 2.4: Dynamic Imports for Heavy Components)
@@ -39,11 +40,11 @@ const getDemoMode = (): boolean => {
 
 // Demo user profile - hoisted as constant (Rule 5.4: Extract Default Non-primitive Parameter Value)
 const DEMO_USER_PROFILE: UserProfile = {
-  privyId: 'demo-user',
+  id: 'demo-user',
   username: 'demouser',
   displayName: 'Demo User',
   bio: 'This is a demo account for testing purposes.',
-  createdAt: Date.now(),
+  createdAt: new Date().toISOString(),
 };
 
 const App: React.FC = () => {
@@ -60,23 +61,29 @@ const App: React.FC = () => {
   useEffect(() => {
     if (demoMode) return;
     
-    if (ready && authenticated && user) {
-      setIsCheckingUser(true);
-      const privyId = user.id;
-      
-      if (isUserRegistered(privyId)) {
-        const profile = getUserByPrivyId(privyId);
-        setUserProfile(profile);
-        setCurrentView('dashboard');
-      } else {
-        setCurrentView('onboarding');
+    const checkUser = async () => {
+      if (ready && authenticated && user) {
+        setIsCheckingUser(true);
+        
+        try {
+          const accessToken = await user.getAccessToken();
+          const { user: profile } = await apiClient.getCurrentUser(accessToken);
+          setUserProfile(profile);
+          setCurrentView('dashboard');
+        } catch (error) {
+          // User not registered, show onboarding
+          console.log('User not registered, showing onboarding');
+          setCurrentView('onboarding');
+        } finally {
+          setIsCheckingUser(false);
+        }
+      } else if (ready && !authenticated) {
+        setCurrentView('landing');
+        setUserProfile(null);
       }
-      
-      setIsCheckingUser(false);
-    } else if (ready && !authenticated) {
-      setCurrentView('landing');
-      setUserProfile(null);
-    }
+    };
+    
+    checkUser();
   }, [ready, authenticated, user, demoMode]);
 
   // Handle Privy login (Rule 5.7: Put Interaction Logic in Event Handlers)
@@ -187,7 +194,6 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<LoadingFallback />}>
         <Onboarding 
-          privyUser={user}
           onFinish={handleOnboardingFinish} 
           onLogout={handleLogout} 
         />
